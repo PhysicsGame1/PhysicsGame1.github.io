@@ -32,6 +32,8 @@ var ballColor = ' ';
 var currentLevel = 2;
 var bgImage = new Image();
 
+window.onload = function(){
+  
 if(currentLevel == 1){
 
   bgImage.src = 'images/nebula.jpg'
@@ -84,6 +86,7 @@ else if(currentLevel == 3){
   ctx.fillText('Target', 640, 275)
   ctx.fillText('Launcher', 60, 540)
 
+}
 }
 
 // Set up renderer and engine options (see link for more options)
