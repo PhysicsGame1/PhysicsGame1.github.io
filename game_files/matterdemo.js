@@ -37,7 +37,7 @@ nebula2.src = 'images/nebula2.jpg'
 var nebula3 = new Image();
 nebula3.src = 'images/nebula3.jpg'
 
-window.onload = function(){
+//window.onload = function(){
   
 if(currentLevel == 1){
 
@@ -89,7 +89,7 @@ else if(currentLevel == 3){
   ctx.fillText('Launcher', 60, 540)
 
 }
-}
+//}
 
 // Set up renderer and engine options (see link for more options)
 //TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
@@ -247,9 +247,24 @@ function calcFuture(body, force) {
 }
 
 function beforeRender(event){
+  if(currentLevel == 1){
+    engine.render.context.drawImage(nebula1, 0, 0);
+    render_variables();
 
-  engine.render.context.drawImage(bgImage, 0, 0);
-  render_variables();
+  }
+
+  else if(currentLevel == 2){
+    engine.render.context.drawImage(nebula2, 0, 0);
+    render_variables();
+
+  }
+
+  else if(currentLevel == 3){
+    engine.render.context.drawImage(nebula3, 0, 0);
+    render_variables();
+
+  }
+
 
 }
 // Draw FPS on the canvas
