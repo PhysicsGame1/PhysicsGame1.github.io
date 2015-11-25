@@ -30,14 +30,18 @@ var targetHit = false;
 var ballRestitution = 0;
 var ballColor = ' ';
 var currentLevel = 2;
-var bgImage = new Image();
+var nebula = new Image();
+nebula.src = 'images/nebula.jpg'
+var nebula2 = new Image();
+nebula2.src = 'images/nebula2.jpg'
+var nebula3 = new Image();
+nebula3.src = 'images/nebula3.jpg'
 
 window.onload = function(){
   
 if(currentLevel == 1){
 
-  bgImage.src = 'images/nebula.jpg'
-  ctx.drawImage(bgImage, 0, 0);
+  ctx.drawImage(nebula, 0, 0);
   ctx.font = "20px Georgia";
   ctx.fillStyle = "white";
   ctx.fillText("LEVEL 1" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
@@ -55,8 +59,7 @@ if(currentLevel == 1){
 
 else if(currentLevel == 2){
 
-  bgImage.src = 'images/nebula2.jpg'
-  ctx.drawImage(bgImage, 0, 0);
+  ctx.drawImage(nebula2, 0, 0);
   ctx.font = "20px Georgia";
   ctx.fillStyle = "white";
   ctx.fillText("LEVEL 2" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
@@ -74,8 +77,7 @@ else if(currentLevel == 2){
 
 else if(currentLevel == 3){
 
-  bgImage.src = 'images/nebula3.jpg'
-  ctx.drawImage(bgImage, 0, 0);
+  ctx.drawImage(nebula3, 0, 0);
   ctx.font = "20px Georgia";
   ctx.fillStyle = "white";
   ctx.fillText("LEVEL 3" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
