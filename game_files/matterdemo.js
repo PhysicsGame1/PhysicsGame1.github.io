@@ -29,7 +29,7 @@ var mouseIsclicked = false;
 var targetHit = false;
 var ballRestitution = 0;
 var ballColor = ' ';
-var currentLevel = 2;
+var currentLevel = 3;
 var nebula = new Image();
 nebula.src = 'images/nebula.jpg'
 var nebula2 = new Image();
@@ -165,16 +165,6 @@ World.add(engine.world, worldObjects);
 fps = Engine.run(engine);
 }
 
-/*
-function filter(bodies)
-{
-	var position = Common.indexOf(bodies, launcher);
-	if (position !== -1) {
-		Composite.removeBodyAt(composite, position);
-		Composite.setModified(composite, true, true, false);
-	}
-}
-*/
 
 var ball_fired = false;
 // Pull the ball towards the mouse when the user clicks
@@ -220,7 +210,7 @@ function calcFuture(body, force) {
 	var futurePositions = [];
 	var bodyMass = body.area * body.density;
 	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale * body.timeScale;
-	for(i = 1; i < 180; i++)
+	for(i = 1; i < 300; i++)
 	{
 		force.x += bodyMass * engine.world.gravity.x * 0.001;
 		force.y += bodyMass * engine.world.gravity.y * 0.001;
@@ -247,6 +237,7 @@ function calcFuture(body, force) {
 }
 
 function beforeRender(event){
+
   if(currentLevel == 1){
     engine.render.context.drawImage(nebula1, 0, 0);
     render_variables();
@@ -318,7 +309,11 @@ function afterCollision(event)
 function endGame(){
   World.add(engine.world,Bodies.rectangle(530, 290, 300, 100, { isStatic: true, render:{fillStyle: '#009900'}}));
   targetHit = true;
-  //console.log("end game");
+  currentLevel+=1;
+
+  if(currentLevel == 4){
+    currentLevel = 1;
+  }
 }
 
 
