@@ -30,7 +30,7 @@ function draw_first_row(type1){
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 1)" , 0, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = iron)" , 0, canvas.height*.22, canvas.width*.2);
 
     c.fillStyle = "blue";
     c.strokeStyle = "white";
@@ -38,7 +38,7 @@ function draw_first_row(type1){
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 2)" ,canvas.width/2-canvas.width*.1, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = steel)" ,canvas.width/2-canvas.width*.1, canvas.height*.22, canvas.width*.2);
 
     c.fillStyle = "blue";
     c.strokeStyle = "white";
@@ -46,7 +46,7 @@ function draw_first_row(type1){
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 3)" ,canvas.width*.8, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = rubber)" ,canvas.width*.8, canvas.height*.22, canvas.width*.2);
 
     if(type1 == "1"){
         c.beginPath();
@@ -100,7 +100,7 @@ function draw_rows(ty, am, can, ctx)
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 1)" , 0, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = iron)" , 0, canvas.height*.22, canvas.width*.2);
 
     c.fillStyle = "blue";
     c.strokeStyle = "white";
@@ -108,7 +108,7 @@ function draw_rows(ty, am, can, ctx)
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 2)" ,canvas.width/2-canvas.width*.1, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = steel)" ,canvas.width/2-canvas.width*.1, canvas.height*.22, canvas.width*.2);
 
     c.fillStyle = "blue";
     c.strokeStyle = "white";
@@ -116,7 +116,7 @@ function draw_rows(ty, am, can, ctx)
 
     c.font = "20px Georgia";
     c.fillStyle = "white";
-    c.fillText("if(type = 3)" ,canvas.width*.8, canvas.height*.22, canvas.width*.2);
+    c.fillText("if(type = rubber)" ,canvas.width*.8, canvas.height*.22, canvas.width*.2);
 
 //SECOND ROW OF RECTANGLES: DISPLAYS THE NEXT SET OF NESTED CONDITIONALS
     c.fillStyle = "blue";
