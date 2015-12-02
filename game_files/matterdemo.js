@@ -122,7 +122,7 @@ Composite.addBody(launcher, circleCannon); //add circleCannon to composite for c
 // Create the ball
 var ball = Bodies.circle(60+30+10, 540, 10, { isStatic: true, label2:"ball", density: 0.01, collisionFilter:{category: launcherSet}, restitution:0.2});
 Composite.addBody(launcher, ball); //add ball to composite for constraint made next
-console.log(ball.label2);
+
 //create constraint on ball to stay around perimeter of circle launcher
 
 var ballConstraint =
@@ -153,6 +153,7 @@ Events.on(engine, 'beforeRender', beforeRender);
 Events.on(engine, 'afterRender', afterRender);
 //I don't know if this works. Not sure if the object should be engine. Look in events.js example for the newest code (find online)
 Events.on(engine, 'collisionEnd', afterCollision);
+Events.on(engine, 'afterUpdate', afterUpdate);
 
 
 
@@ -205,39 +206,43 @@ function mousemove(event)
 
 
 function calcFuture(body, force) {
+	// Copy body variables so we don't overwrite them
 	var x = body.position.x; var y = body.position.y;
 	var px = body.positionPrev.x; var py = body.positionPrev.y;
-	var futurePositions = [];
+	var vx = x - px; var vy = y - py;
+
+	// Precalculate stuff that won't change
 	var bodyMass = body.area * body.density;
 	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale * body.timeScale;
-	for(i = 1; i < 300; i++)
+    var deltaTimeSquared = Math.pow(fps.delta * engine.timing.timeScale * body.timeScale, 2);
+	var gravityX = bodyMass * engine.world.gravity.x * 0.001;
+	var gravityY = bodyMass * engine.world.gravity.y * 0.001;
+
+	// Calculate and store 180 physics timesteps into the future
+	var futurePositions = [];
+	for(i = 1; i < 180; i++)
 	{
-		force.x += bodyMass * engine.world.gravity.x * 0.001;
-		force.y += bodyMass * engine.world.gravity.y * 0.001;
-		
-	    var deltaTimeSquared = Math.pow(fps.delta * engine.timing.timeScale * body.timeScale, 2);
-
-        // from the previous step
-        
-        var velocityPrevX = x - px;
-		var velocityPrevY = y - py;
-
         // update velocity with Verlet integration
-        vx = (velocityPrevX * frictionAir) + (force.x / bodyMass) * deltaTimeSquared;
-        vy = (velocityPrevY * frictionAir) + (force.y / bodyMass) * deltaTimeSquared;
+        vx = (vx * frictionAir) + (force.x / bodyMass) * deltaTimeSquared;
+        vy = (vy * frictionAir) + (force.y / bodyMass) * deltaTimeSquared;
 
         px = x;
         py = y;
         x += vx;
         y += vy;
+		
 		futurePositions.push({x:x, y:y});
-		force = {x:0, y:0};
+		force = {x:gravityX, y:gravityY};
     }
 	return futurePositions;
 }
 
-function beforeRender(event){
+function afterUpdate(event)
+{
+	render_variables();
+}
 
+function beforeRender(event){
   if(currentLevel == 1){
     engine.render.context.drawImage(nebula1, 0, 0);
     render_variables();
@@ -263,12 +268,17 @@ function afterRender(event)
 {
 	var ctx = engine.render.context;
 	ctx.font = '20px Consolas';
-	ctx.fillStyle = 'black';
+	
 
   if(targetHit){
+	ctx.strokeStyle = 'yellow'
+	ctx.fillStyle = '#009900';
+	var width = 300; var height = 100;
+	ctx.fillRect((canvas.width - width ) / 2, (canvas.height - height) / 2, 300, 100);
+	ctx.strokeRect((canvas.width - width ) / 2, (canvas.height - height) / 2, 300, 100);
     ctx.font = '20px Consolas';
     ctx.fillStyle = '#efefef';
-    ctx.fillText("Level Complete!",450,300);
+    ctx.fillText("Level Complete!",430,300);
   }
   
   if (!ball_fired)
@@ -287,9 +297,8 @@ function afterRender(event)
 	ctx.stroke();
   } 
 
+  ctx.fillStyle = 'yellow';
 	ctx.fillText(Math.round(fps.fps), 40, 40); //New way to display fps
-
-	render_variables();
 }
 
 function afterCollision(event)
@@ -300,20 +309,10 @@ function afterCollision(event)
 		var a = event.pairs[k].bodyA;
 		var b = event.pairs[k].bodyB;
 		if (a.label2 == "ball" && b.label2 == "target")
-			endGame();
+			targetHit = true;
 		if (b.label2 == "ball" && a.label2 == "target")
-			endGame();
+			targetHit = true;
 	}
-}
-
-function endGame(){
-  World.add(engine.world,Bodies.rectangle(530, 290, 300, 100, { isStatic: true, render:{fillStyle: '#009900'}}));
-  targetHit = true;
-  currentLevel+=1;
-
-  if(currentLevel == 4){
-    currentLevel = 1;
-  }
 }
 
 

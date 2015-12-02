@@ -10,20 +10,18 @@ function render_variables()
 {
 	if (bRenderVars == false)
 		return;
-	vvars.setVariable('ball.position.x', ball.position.x);
-	vvars.setVariable('ball.position.y', ball.position.y);
-	vvars.setVariable('ball.velocity.x', ball.velocity.x);
-	vvars.setVariable('ball.velocity.y', ball.velocity.y);
+	//vvars.setVariable('test', {pos:{x:8,y:10,z:12}, angle:33});
+	vvars.setVariable('ball.position', ball.position);
+	vvars.setVariable('ball.velocity', ball.velocity);
+	vvars.setVariable('time', fps.timePrev / 1000);
 	
-	vvars.setRoundingRule('ball.position.x', 1);
-	vvars.setRoundingRule('ball.position.y', 1);
-	vvars.setRoundingRule('ball.velocity.x', 0);
-	vvars.setRoundingRule('ball.velocity.y', 0);
+	vvars.setRoundingRule('time', 1);
+	vvars.showDelta('time', true);
 	vvars.render(0, 0, 500, 560);
 }
 
 function enable_variables()
 {
 	bRenderVars = true;
-	vVars.needPositionUpdate = true;
+	vvars.needPositionUpdate = true;
 }

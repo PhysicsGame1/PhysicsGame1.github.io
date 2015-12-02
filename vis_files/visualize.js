@@ -44,6 +44,7 @@ function visualization()
     this.needPositionUpdate = true;
     this.warn = false;
 	this.roundingRule = 10000;
+	this.renderStyle = 2;
 }
 
 // vis.setCanvas( document.getElementById('visualizeCanvas') );
@@ -69,12 +70,23 @@ visualization.prototype.setVariable = function (key, value)
         //if (value.toString().length > v.value.toString().length)
         //    console.log("Update?");
 
+		if (v.useDelta)
+		{
+			if (value > v.value)
+				v.delta = "▲";
+			if (value < v.value)
+				v.delta = "▼";
+			//if (value == v.value)
+			//	v.delta = "";
+		}
+		
         v.redraw = true;
-        v.value = value;
+		v.value = value;
+			
     }
     else
     {   // Variable has not been set yet, set to defaults
-        this.variables[key] = { value: value, highlight: false, redraw: true, renderPos: { w: -1, h: -1 }, roundingRule:100000 };
+        this.variables[key] = { value: value, highlight: false, redraw: true, renderPos: { w: -1, h: -1 }, roundingRule:100000, useDelta:false, delta:"" };
         this.needPositionUpdate = true;
         //console.log("add " + name + " = " + value);
     }
@@ -112,6 +124,13 @@ visualization.prototype.setRoundingRule = function(key, decimals)
 	this.variables[key].roundingRule = Math.pow(10, decimals);
 }
 
+visualization.prototype.showDelta = function(key, useDelta)
+{
+	this.variables[key].useDelta = useDelta;
+	if (useDelta == false)
+		this.variables[key].delta = "";
+}
+
 visualization.prototype._calcVarRenderSize = function (key)
 {
     var ctx = this.outputContext;
@@ -125,7 +144,7 @@ visualization.prototype._calcVarRenderSize = function (key)
 	
 	if (typeof v == 'object' && v != null)
 	{ // Object or array
-	    console.log("Warning: Objects not yet supported");
+	    /*
 	    var maxWidth = ctx.measureText(key).width;
 		var count = 1;
 		for (i in v)
@@ -136,6 +155,8 @@ visualization.prototype._calcVarRenderSize = function (key)
 			count++;
 		}
 		return { h: sectionHeight * count, w: maxWidth + marginWidth };
+		*/
+		return { h:0, w:0};
 	}
 	else 
 	{ // This is a simple type
@@ -175,10 +196,86 @@ visualization.prototype._2DbinPack = function (w, h)
     return warn;
 };
 
+visualization.prototype.render2 = function(x, y, w, h)
+{
+	var fontHeight = this._determineFontHeight(this.fontSize + "px " + this.font);
+	var ctx = this.outputContext;
+	
+	ctx.font = this.fontSize + "px " + this.font;
+	
+	var oldtextAlign = ctx.textAlign;
+	var oldtextBaseline = ctx.textBaseline;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+	
+	ctx.fillStyle = 'black';
+    ctx.fillRect(x, y, w, h);
+	
+	for (key in this.variables)
+	{
+		var v = this.variables[key];
+		if (v.highlight)
+			ctx.fillStyle = 'yellow';
+		else
+			ctx.fillStyle = 'white';
+		
+		if (typeof v.value == 'object' && v.value != null)
+		{ // Object or array
+			ctx.fillText(key + ".", x + 10, y);
+			y = this._printObj(v.value, x + 10, y + fontHeight, ' ');
+		}
+		else
+		{
+			ctx.fillText(key + " = " + v.delta + this._formatValue(key), x + 10, y);
+			y += fontHeight;
+		}	
+	}
+	
+	ctx.oldtextAlign = ctx.textAlign;
+	ctx.textBaseline = oldtextBaseline;
+}
+
+visualization.prototype._printObj = function(obj, x, y, prevBoxchar)
+{
+	var fontHeight = this._determineFontHeight(this.fontSize + "px " + this.font);
+	var ctx = this.outputContext;
+	var yStart = y;
+	var last;
+	for (var key in obj)
+		last = key;
+	for (var key in obj)
+	{
+		var boxchar = prevBoxchar + '├';
+		if (key == last)
+			boxchar = prevBoxchar + '└';
+		if (typeof obj[key] == 'object' && obj[key] != null)
+		{
+			ctx.fillText(boxchar + ' ' + key + ".", x, y);
+			y = this._printObj(obj[key], x, y + fontHeight, prevBoxchar + '│');
+		}
+		else
+		{
+			ctx.fillText(boxchar + ' ' + key + " = " + obj[key], x, y);
+			y += fontHeight;
+		}
+	}
+	
+	//ctx.stroke();
+	return y;
+}
+
 
 // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
 visualization.prototype.render = function (x, y, w, h)
 {
+	if (this.renderStyle == 2)
+	{
+		this.render2(x, y, w, h);
+		return;
+	}
+	
+	// Old rendering code...
+	
     var ctx = this.outputContext;
     var redrawAll = false;
     // If flag set or dimensions of render area changed, we need to recalculate variable positions
