@@ -133,7 +133,7 @@ Constraint.create({
 
 Composite.addConstraint(launcher, ballConstraint); //we make sure the distance of centers between the ball and cannonCircle is constant
 worldObjects.push(launcher);
-worldObjects.push(bgImage);
+//worldObjects.push(bgImage);
 
 function run_simulation(){
 
@@ -437,7 +437,7 @@ function set_iron(){
 
   if(ball_is_clicked == false){
 
-    draw_first_row(type1);
+    //draw_first_row(type1);
     type1 = "1";
 	  Body.setDensity(ball, 0.09);
     ballRestitution = 0.4;
@@ -454,7 +454,7 @@ function set_steel(){
   
   if(ball_is_clicked == false){
 
-    draw_first_row(type1);
+    //draw_first_row(type1);
     type1 = "2";
 	  Body.setDensity(ball, 0.07);
     ballRestitution = 0.3;
@@ -471,7 +471,7 @@ function set_rubber(){
   
   if(ball_is_clicked == false){
 
-    draw_first_row(type1);
+    //draw_first_row(type1);
     type1 = "3";
 	  Body.setDensity(ball, 0.05);
     ballRestitution = 0.8;
@@ -496,7 +496,8 @@ function set_gp1(){
     else{
     	gp_force = 5;
       gp_is_clicked = true;
-    	draw_flow_chart(type1, amount1);
+    	//draw_flow_chart(type1, amount1);
+      main();
     	run_simulation();
 	  }
   }
@@ -514,7 +515,8 @@ function set_gp2(){
     else{
     	gp_force = 7;
       gp_is_clicked = true;
-    	draw_flow_chart(type1, amount1);
+    	//draw_flow_chart(type1, amount1);
+      main();
     	run_simulation();
 	  }
   }
@@ -532,7 +534,8 @@ function set_gp3(){
     else{
       gp_force = 8.65;
       gp_is_clicked = true;
-      draw_flow_chart(type1, amount1);
+      //draw_flow_chart(type1, amount1);
+      main();
       run_simulation();
     } 
   }
