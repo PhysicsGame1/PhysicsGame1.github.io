@@ -86,7 +86,7 @@ function main(){
 
 }
 
-},18);
+},25);
 
 }
 function calculateMovement(ob){
