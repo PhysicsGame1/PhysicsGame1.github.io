@@ -94,13 +94,14 @@ else if(currentLevel == 3){
 // Set up renderer and engine options (see link for more options)
 //TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
 // https://github.com/liabru/matter-js/wiki/Rendering
-var engine = Engine.create({render:
-	{
+var engine = Engine.create({enableSleeping: true,
+	render:	{
 		canvas: canvas,         // render on this canvas (the one defined above)
 		options: {
 			wireframes: false,    // Do not render wireframes
 			showVelocity: false,   // Show velocity vectors
-			showCollisions: false  // Show collision vectors
+			showCollisions: false,  // Show collision vectors
+			showSleeping: false
 		}
 }});
 
@@ -335,12 +336,14 @@ function create_world(worldObjects){
         } else createLevel5(worldObjects);
     }
 
+	
+var target;
 function createLevel1(worldObjects)
 {
 
 worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula.jpg'}}}));
 // Create a custom shape
-worldObjects.push(Body.create({
+worldObjects.push(target = Body.create({
     position: { x: 600, y: 260 }
   , restitution: 0.5
   , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
@@ -368,7 +371,7 @@ function createLevel2(worldObjects)
 {
 worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula2.jpg'}}}));
 // Create a custom shape
-worldObjects.push(Body.create({
+worldObjects.push(target = Body.create({
     position: { x: 600, y: 80 }
   , restitution: 0.5
   , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
@@ -398,8 +401,7 @@ function createLevel3(worldObjects)
 {
 worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula3.jpg'}}}));
 // Create a custom shape
-// Create a custom shape
-worldObjects.push(Body.create({
+worldObjects.push(target = Body.create({
     position: { x: 640, y: 275 }
   , restitution: 0.5
   , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
@@ -454,7 +456,6 @@ function set_steel(){
   
   if(ball_is_clicked == false){
 
-    //draw_first_row(type1);
     type1 = "2";
 	  Body.setDensity(ball, 0.07);
     ballRestitution = 0.3;
@@ -496,8 +497,8 @@ function set_gp1(){
     else{
     	gp_force = 5;
       gp_is_clicked = true;
-    	//draw_flow_chart(type1, amount1);
-      main();
+      mainclicked = true;
+	    main();
     	run_simulation();
 	  }
   }
@@ -515,7 +516,7 @@ function set_gp2(){
     else{
     	gp_force = 7;
       gp_is_clicked = true;
-    	//draw_flow_chart(type1, amount1);
+      mainclicked = true;
       main();
     	run_simulation();
 	  }
@@ -534,7 +535,7 @@ function set_gp3(){
     else{
       gp_force = 8.65;
       gp_is_clicked = true;
-      //draw_flow_chart(type1, amount1);
+      mainclicked = true;
       main();
       run_simulation();
     } 

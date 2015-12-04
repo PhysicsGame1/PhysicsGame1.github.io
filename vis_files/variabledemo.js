@@ -4,24 +4,27 @@ var bRenderVars = false;
 // Initialize the visualation
 var vvars = new visualization();
 vvars.setCanvas(document.getElementById('v_canvas'));
-vvars.fontSizeMax = 24;
+
+vvars.addShownKeys('ball', ['position', 'velocity', 'restitution', 'density', 'isSleeping']);
+vvars.addShownKeys('target', ['position', 'isSleeping']);
+vvars.setRoundingRule('time', 1);
 
 function render_variables()
 {
 	if (bRenderVars == false)
 		return;
-	//vvars.setVariable('test', {pos:{x:8,y:10,z:12}, angle:33});
-	vvars.setVariable('ball.position', ball.position);
-	vvars.setVariable('ball.velocity', ball.velocity);
+	//vvars.setVariable('test', {pos:{r:0.3, test:{s:3.114, v:6.228},x:8,y:10,z:12}, angle:33});
+	//vvars.addHiddenKeys('test', ['pos.test.s', 'pos.y']);
+	vvars.setVariable('ball', ball);
+	vvars.setVariable('target', target);
+	
 	vvars.setVariable('time', fps.timePrev / 1000);
 	
-	vvars.setRoundingRule('time', 1);
-	vvars.showDelta('time', true);
+	
 	vvars.render(0, 0, 500, 560);
 }
 
 function enable_variables()
 {
 	bRenderVars = true;
-	vvars.needPositionUpdate = true;
 }
