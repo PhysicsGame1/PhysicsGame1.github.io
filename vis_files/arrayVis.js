@@ -11,7 +11,7 @@ function arrayVis_insert(name, callback)
 	arrayVis_drawArray(name, arrayVis_insert.nextIndex);
 	
 	arrayVis_insert.nextIndex += 1;
-	arrayVis_insert.interval = setInterval(arrayVis_update, 15);
+	arrayVis_insert.interval = setInterval(arrayVis_update, 30);
 }
 arrayVis_insert.nextIndex = 0;
 arrayVis_insert.interval = 0;
@@ -25,7 +25,7 @@ function arrayVis_ready()
 // Step the visualization to the next frame
 function arrayVis_update()
 {
-	var speed = DEBUG ? 80 : 5;
+	var speed = DEBUG ? 160 : 10;
 	var targetIndex = arrayVis_insert.nextIndex - 1;
 	var startIndex = targetIndex > 8 ? targetIndex - 8 : 0;
 	var ytarget = 75 + (targetIndex - startIndex) * 50;
@@ -94,7 +94,7 @@ function arrayVis_stop(reason)
 function arrayVis_continue()
 {
 	if (arrayVis_insert.interval == 0)
-		arrayVis_insert.interval = setInterval(arrayVis_update, 15);
+		arrayVis_insert.interval = setInterval(arrayVis_update, 30);
 }
 
 // Runs when user clicks array vis tab

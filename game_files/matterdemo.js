@@ -108,8 +108,10 @@ function afterUpdate(event)
 // Check to see if the ball collided with the target
 function afterCollision(event)
 {
+	if (current_state != STATE_BALL_LAUNCHED)
+		return;
 	//console.log("after collision");
-	for(k in event.pairs)
+	for(var k in event.pairs)
 	{
 		var a = event.pairs[k].bodyA;
 		var b = event.pairs[k].bodyB;
@@ -383,8 +385,9 @@ function set_gp3()
 	return futurePositions;
 }
 
-function run_level(n, use_visualization=true)
+function run_level(n, use_visualization)
 {
+	use_visualization = typeof use_visualization == 'undefined' ? true : use_visualization;
 	if (n < 0 || n >= level_create_fns.length)
 	{	// This level is not defined
 		n = 0;
