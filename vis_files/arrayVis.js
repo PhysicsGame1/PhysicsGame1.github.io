@@ -65,6 +65,9 @@ function arrayVis_update()
 // Clear the visualization to a fresh state
 function arrayVis_reset()
 {
+	arrayVis_insert.nextIndex = 0;
+	arrayVis_insert.callback = null;
+	arrayVis_stop("reset");
 	if (arrayVis_enableRender.rendering)
 	{
 		var canvas = document.getElementById("v_canvas");
@@ -72,9 +75,6 @@ function arrayVis_reset()
 		c.fillStyle = "black";
 		c.fillRect(0, 0, canvas.width, canvas.height);
 	}
-	arrayVis_insert.nextIndex = 0;
-	arrayVis_insert.callback = null;
-	arrayVis_stop("reset");
 }
 
 // Stop updating the canvas and inform the callback function if necessary

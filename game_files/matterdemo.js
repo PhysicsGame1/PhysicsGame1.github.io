@@ -6,30 +6,30 @@ var DEBUG = false;
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
 
-var Engine = Matter.Engine,											//manages updating and rendering canvas
-		World = Matter.World,												//composite of entire canvas
-		Bodies = Matter.Bodies,											//used to create shapes within canvas
-		Body = Matter.Body,													//used to manipulated created bodies in canvas
-		Events = Matter.Events,											//used for mouse events like mousdown, mousemove, and mouseup
-		Composite = Matter.Composite,								//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
-		Composites = Matter.Composites,							//used to build composites (combining lots of shapes into structures like walls etc)
-		Constraint = Matter.Constraint,							//used to create launcher for the ball 
+var Engine = Matter.Engine,								//manages updating and rendering canvas
+		World = Matter.World,							//composite of entire canvas
+		Bodies = Matter.Bodies,							//used to create shapes within canvas
+		Body = Matter.Body,								//used to manipulated created bodies in canvas
+		Events = Matter.Events,							//used for mouse events like mousdown, mousemove, and mouseup
+		Composite = Matter.Composite,					//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
+		Composites = Matter.Composites,					//used to build composites (combining lots of shapes into structures like walls etc)
+		Constraint = Matter.Constraint,					//used to create launcher for the ball 
 		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
-		Vector = Matter.Vector;											//for vector algebra
+		Vector = Matter.Vector;							//for vector algebra
 
 
 // Set up renderer and engine options (see link for more options)
 // TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
 // https://github.com/liabru/matter-js/wiki/Rendering
 var engine = Engine.create({
-	enableSleeping: true,				// Stop performing physics on idle bodies
+	enableSleeping: false,			// Stop performing physics on idle bodies
 	render:	{
-		canvas: canvas,						// Render on this canvas
+		canvas: canvas,				// Render on this canvas
 		options: {
-			wireframes: false,			// Do not render wireframes
-			showVelocity: false,		// Show velocity vectors
+			wireframes: false,		// Do not render wireframes
+			showVelocity: false,	// Show velocity vectors
 			showCollisions: false,	// Show collision vectors
-			showSleeping: false			// Do not do special rendering for sleeping bodies
+			showSleeping: false		// Do not do special rendering for sleeping bodies
 		}
 }});
 
@@ -45,6 +45,7 @@ var STATE_BALL_CHOSEN = 201
 var STATE_POWDER_CHOSEN = 202;
 var STATE_BALL_POWDER_CHOSEN = 203;
 var STATE_BALL_LAUNCHED = 300;
+var STATE_TARGET_MISSED = 375;
 var STATE_TARGET_HIT = 400;
 
 // Tracks the current state of the game
@@ -75,6 +76,9 @@ var mousePos = {x:0, y:0};
 // Current level
 var current_level;
 
+// The last user ball/powder choice
+var ball_choice_fn = DEBUG ? set_steel : function(){};
+var powder_choice_fn = DEBUG ? set_gp2 : function(){};
 
 /***********************************************************************
  *                      Matter.js events
@@ -89,6 +93,15 @@ Events.on(engine, 'afterRender', afterRender);
 
 function afterUpdate(event)
 {
+	if (current_state == STATE_BALL_LAUNCHED)
+	{
+		setTimeout(function(x, y) {
+			if (current_state == STATE_BALL_LAUNCHED && Math.abs(ball.position.x-x) < 1 && Math.abs(ball.position.y-y) < 1)
+			{
+				current_state = STATE_TARGET_MISSED;
+				setTimeout(run_level, DEBUG ? 500 : 4000, current_level, false);
+			}}, 1000, ball.position.x, ball.position.y);
+	}
 	render_variables();
 }
 
@@ -131,6 +144,17 @@ function afterRender(event)
 	if (current_state == STATE_TARGET_HIT)
 	{
 		draw_textbox("Level Complete! The next level will begin soon.", canvas.width/2, canvas.height/2, {
+			font:'24px Arial',
+			background:'#009900',
+			outline:'yellow',
+			x_margin:30,
+			y_margin:20
+		});
+	}
+	
+	if (current_state == STATE_TARGET_MISSED)
+	{
+		draw_textbox("You missed! The level will restart soon.", canvas.width/2, canvas.height/2, {
 			font:'24px Arial',
 			background:'#009900',
 			outline:'yellow',
@@ -274,6 +298,7 @@ function set_iron()
 	Body.setRestitution(ball, 0.4);
 	Body.setFillstyle(ball, '#7E7E7E');
 	current_state = current_state | 1;	// Set ball chosen flag
+	ball_choice_fn = set_iron;
 }
 
 function set_steel()
@@ -284,6 +309,7 @@ function set_steel()
 	Body.setRestitution(ball, 0.3);
 	Body.setFillstyle(ball, '#C1C1C1');
 	current_state = current_state | 1;
+	ball_choice_fn = set_steel;
 }
 
 function set_rubber()
@@ -294,6 +320,7 @@ function set_rubber()
 	Body.setRestitution(ball, 0.8);
 	Body.setFillstyle(ball, '#EC2128');
 	current_state = current_state | 1;
+	ball_choice_fn = set_rubber;
 }
 
 
@@ -303,6 +330,7 @@ function set_gp1()
 		return;
 	gp_force = 1.25;
 	current_state = current_state | 2;	// Set powder chosen flag
+	powder_choice_fn = set_gp1;
 }
 
 function set_gp2()
@@ -311,6 +339,7 @@ function set_gp2()
 		return;
 	gp_force = 1.75;
 	current_state = current_state | 2;
+	powder_choice_fn = set_gp2;
 }
 
 function set_gp3()
@@ -319,6 +348,7 @@ function set_gp3()
 		return;
 	gp_force = 2.15;
 	current_state = current_state | 2;
+	powder_choice_fn = set_gp3;
 }
  
  /***********************************************************************
@@ -353,7 +383,7 @@ function set_gp3()
 	return futurePositions;
 }
 
-function run_level(n)
+function run_level(n, use_visualization=true)
 {
 	if (n < 0 || n >= level_create_fns.length)
 	{	// This level is not defined
@@ -368,18 +398,18 @@ function run_level(n)
 	World.clear(engine.world);
 	
 	// Reset array visualization
-	arrayVis_reset();
+	if (use_visualization)
+		arrayVis_reset();
 	
 	current_state = STATE_PRE_INIT;
-	current_level = n;	// Set global level variable
 	
 	engine.render.options.background = 'images/nebula' + n + '.jpg'
 	
 	var worldObjects = [];
-	console.log(n);
 	level_create_fns[n](worldObjects);
 	fps_runner = Engine.run(engine);
-	
+
+	current_level = n;	// Set global level variable
 	current_state = STATE_AFTER_INIT;
 	
 	// Freeze simulation while adding objects
@@ -398,20 +428,27 @@ function run_level(n)
 			for(var i = 0; i < allComposite.length; i++)
 			{
 				show_next_body.bodies.push(allComposite[i])
-				allComposite[i].render.visible = false;
+				allComposite[i].render.visible = (!use_visualization);
 			}
 		}
 		else
 		{
 			show_next_body.bodies.push(obj);
-			obj.render.visible = false;
+			obj.render.visible = (!use_visualization);
 		}
 		
 		// Add it to the world
 		World.add(engine.world, obj);
 	}
 	
-	show_next_body("finished");
+	if (use_visualization)
+		show_next_body("finished");
+	else
+	{	// Pick the ball and powder for the user
+		current_state = STATE_NONE_CHOSEN;
+		engine.timing.timeScale = 1;
+		ball_choice_fn(); powder_choice_fn();
+	}
 }
 
 function show_next_body(reason)
@@ -431,6 +468,7 @@ function show_next_body(reason)
 	{
 		current_state = STATE_NONE_CHOSEN;
 		engine.timing.timeScale = 1;
+		ball_choice_fn(); powder_choice_fn();
 		return;
 	}
 	
@@ -470,7 +508,7 @@ function draw_textbox(text, xCenter, yCenter, options)
 	ctx.fillRect(x, y, w, h);
 	ctx.strokeRect(x, y, w, h);
 	
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+	ctx.textAlign = 'left'; ctx.textBaseline = 'top';
 	ctx.fillStyle = tb.fillStyle; 
 	ctx.fillText(text, x + tb.x_margin, y + tb.y_margin);
 	
