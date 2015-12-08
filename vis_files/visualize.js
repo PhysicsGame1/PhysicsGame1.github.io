@@ -130,18 +130,19 @@ visualization.prototype.clearShownKeys = function(key)
 //ctx.measureText(this._formatValue(key)).width
 visualization.prototype.render = function(x, y, w, h)
 {
-	var fontHeight = this._determineFontHeight(this.fontSize + "px " + this.font);
+	var fontHeight = pixiGetFontHeight(this.fontSize + "px " + this.font);
 	var ctx = this.outputContext;
+	
+	var ctxBackup;
+	saveProperties(ctx, ctxBackup);
 	
 	ctx.font = this.fontSize + "px " + this.font;
 	
-	var oldtextAlign = ctx.textAlign;
-	var oldtextBaseline = ctx.textBaseline;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
 	
 	ctx.fillStyle = 'black';
-    ctx.fillRect(x, y, w, h);
+  ctx.fillRect(x, y, w, h);
 	
 	for (key in this.variables)
 	{
@@ -170,14 +171,13 @@ visualization.prototype.render = function(x, y, w, h)
 		}	
 	}
 	
-	ctx.oldtextAlign = ctx.textAlign;
-	ctx.textBaseline = oldtextBaseline;
+	restoreProperties(ctx, ctxBackup);
 	this.prevRenderTime = (new Date()).getTime();
 }
 
 visualization.prototype._printObj = function(v, objName, obj, x, y, prevKey, bc)
 {
-	var fontHeight = this._determineFontHeight(this.fontSize + "px " + this.font);
+	var fontHeight = pixiGetFontHeight(this.fontSize + "px " + this.font);
 	var ctx = this.outputContext;
 	// Determine the last key to be enumerated..
 	var last;
@@ -262,23 +262,40 @@ visualization.prototype._shouldDrawKey = function(v, key)
 }
 
 // Credit pixi.js (MIT)
-visualization.prototype._determineFontHeight = function (fontStyle) {
-    var result = this.fontHeightCache[fontStyle];
+function pixiGetFontHeight(fontStyle)
+{
+	if ( typeof pixiGetFontHeight.fontHeightCache == 'undefined' )
+		pixiGetFontHeight.fontHeightCache = {};
+		
+	var result = pixiGetFontHeight.fontHeightCache[fontStyle];
 
-    if (!result) {
-        var body = document.getElementsByTagName('body')[0];
-        var dummy = document.createElement('div');
+	if (!result) {
+		var body = document.getElementsByTagName('body')[0];
+		var dummy = document.createElement('div');
 
-        var dummyText = document.createTextNode('M');
-        dummy.appendChild(dummyText);
-        dummy.setAttribute('style', 'font:' + fontStyle + ';position:absolute;top:0;left:0');
-        body.appendChild(dummy);
-        result = dummy.offsetHeight;
+		var dummyText = document.createTextNode('M');
+		dummy.appendChild(dummyText);
+		dummy.setAttribute('style', 'font:' + fontStyle + ';position:absolute;top:0;left:0');
+		body.appendChild(dummy);
+		result = dummy.offsetHeight;
 
-        this.fontHeightCache[fontStyle] = result;
-        body.removeChild(dummy);
-        console.log("Variable visualization: Cached " + fontStyle + " = " + result);
-    }
+		pixiGetFontHeight.fontHeightCache[fontStyle] = result;
+		body.removeChild(dummy);
+		console.log("pixiGetFontHeight: Cached " + fontStyle + " = " + result);
+	}
 
-    return result;
-};
+	return result;
+}
+
+function saveProperties(ctx, copy)
+{
+	copy = {};
+	for (k in ctx)
+		copy[k] = ctx[k];
+}
+
+function restoreProperties(ctx, copy)
+{
+	for (k in copy)
+		ctx[k] = copy[k];
+}

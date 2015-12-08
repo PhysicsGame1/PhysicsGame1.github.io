@@ -18,13 +18,14 @@ function render_variables()
 	vvars.setVariable('ball', ball);
 	vvars.setVariable('target', target);
 	
-	vvars.setVariable('time', fps.timePrev / 1000);
-	
-	
+	vvars.setVariable('time', fps_runner.timePrev / 1000);
+	vvars.setVariable('current_state', current_state);
+	vvars.setVariable('current_level', current_level);
 	vvars.render(0, 0, 500, 560);
 }
 
 function enable_variables()
 {
 	bRenderVars = true;
+	arrayVis_enableRender.rendering = false;
 }

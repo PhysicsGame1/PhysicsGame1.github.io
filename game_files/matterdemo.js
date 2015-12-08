@@ -1,307 +1,98 @@
+﻿/***********************************************************************
+ *                      Global definitions
+ ***********************************************************************/
+var DEBUG = false;
+
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
-var xMedian = canvas.width/2;
-var yMedian = canvas.height/2;
 
-var Engine = Matter.Engine, //manages updating and rendering canvas
-    World = Matter.World, //composite of entire canvas
-    Bodies = Matter.Bodies, //used to create shapes within canvas
-    Body = Matter.Body, //used to manipulated created bodies in canvas
-    Events = Matter.Events, //used for mouse events like mousdown, mousemove, and mouseup
-	Composite = Matter.Composite, //to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
-	Composites = Matter.Composites, //used to build composites (combining lots of shapes into structures like walls etc)
-	Constraint = Matter.Constraint, //used to create launcher for the ball 
-	MouseConstraint = Matter.MouseConstraint, //mouse events must go through mouseconstraint instead of engine now
-	Runner = Matter.Runner, //for fps
-	Vector = Matter.Vector; //for vector algebra
+var Engine = Matter.Engine,											//manages updating and rendering canvas
+		World = Matter.World,												//composite of entire canvas
+		Bodies = Matter.Bodies,											//used to create shapes within canvas
+		Body = Matter.Body,													//used to manipulated created bodies in canvas
+		Events = Matter.Events,											//used for mouse events like mousdown, mousemove, and mouseup
+		Composite = Matter.Composite,								//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
+		Composites = Matter.Composites,							//used to build composites (combining lots of shapes into structures like walls etc)
+		Constraint = Matter.Constraint,							//used to create launcher for the ball 
+		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
+		Vector = Matter.Vector;											//for vector algebra
 
-var type1 = 0;
-var amount1 = 0;
-var isclicked = false;
-gp_force = 0;
-ball_density = 0;
-var ball_is_clicked = false;
-var gp_is_clicked = false;
-var objects = [];
-//keeps track of if the game is already running
-var is_running = true;
-var mouseIsclicked = false;
-var targetHit = false;
-var ballRestitution = 0;
-var ballColor = ' ';
-var currentLevel = 2;
-var nebula = new Image();
-nebula.src = 'images/nebula.jpg'
-var nebula2 = new Image();
-nebula2.src = 'images/nebula2.jpg'
-var nebula3 = new Image();
-nebula3.src = 'images/nebula3.jpg'
-
-window.onload = function(){
-  
-if(currentLevel == 1){
-
-  ctx.drawImage(nebula, 0, 0);
-  ctx.font = "20px Georgia";
-  ctx.fillStyle = "white";
-  ctx.fillText("LEVEL 1" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
-  ctx.fillStyle = 'brown';
-  ctx.fillRect(200, 300, 60, 20);
-  ctx.fillRect(150, 100, 20, 70);
-  ctx.fillRect(300, 400, 30, 90);
-  ctx.fillRect(600, 300, 60, 80);
-  ctx.fillRect(600, 300, 60, 80);
-  ctx.fillStyle = 'white';
-  ctx.fillText('Target', 600, 260)
-  ctx.fillText('Launcher', 60, 540)
-// Create the world borders
-}
-
-else if(currentLevel == 2){
-
-  ctx.drawImage(nebula2, 0, 0);
-  ctx.font = "20px Georgia";
-  ctx.fillStyle = "white";
-  ctx.fillText("LEVEL 2" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
-  ctx.fillStyle = 'brown';
-  ctx.fillRect(100, 200, 60, 20);
-  ctx.fillRect(400, 300, 60, 20);
-  ctx.fillRect(270, 100, 20, 70);
-  ctx.fillRect(300, 400, 30, 90);
-  ctx.fillRect(600, 100, 60, 40);
-  ctx.fillStyle = 'white';
-  ctx.fillText('Target', 600, 80)
-  ctx.fillText('Launcher', 60, 540)
-
-}
-
-else if(currentLevel == 3){
-
-  ctx.drawImage(nebula3, 0, 0);
-  ctx.font = "20px Georgia";
-  ctx.fillStyle = "white";
-  ctx.fillText("LEVEL 3" ,canvas.width*.8, canvas.height*.56, canvas.width*.2);
-  ctx.fillStyle = 'brown';
-  ctx.fillRect(600, 0, 40, 305);
-  ctx.fillRect(640, 295, 40, 10);
-  ctx.fillStyle = 'white';
-  ctx.fillText('Target', 640, 275)
-  ctx.fillText('Launcher', 60, 540)
-
-}
-}
 
 // Set up renderer and engine options (see link for more options)
-//TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
+// TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
 // https://github.com/liabru/matter-js/wiki/Rendering
-var engine = Engine.create({enableSleeping: true,
+var engine = Engine.create({
+	enableSleeping: true,				// Stop performing physics on idle bodies
 	render:	{
-		canvas: canvas,         // render on this canvas (the one defined above)
+		canvas: canvas,						// Render on this canvas
 		options: {
-			wireframes: false,    // Do not render wireframes
-			showVelocity: false,   // Show velocity vectors
-			showCollisions: false,  // Show collision vectors
-			showSleeping: false
+			wireframes: false,			// Do not render wireframes
+			showVelocity: false,		// Show velocity vectors
+			showCollisions: false,	// Show collision vectors
+			showSleeping: false			// Do not do special rendering for sleeping bodies
 		}
 }});
 
-//all of this global for now 
-
-var fps; //used for the fps
-var mouseConstraint = MouseConstraint.create(engine); //to get mouse events to work must explicitly create mouse constraint now
-var worldObjects = [];
-//this composite groups both the circleCannon and cannonball into one "body"
-launcherSet = 0x0002; //used to make ball and cannonCircle not collide by putting them in same group
-var launcher = Composite.create();
-
-//this is the "cannon". Have the ball traverse the outer edge of the circle cause it looks cool
-var circleCannon = Bodies.circle(60, 540, 30, { label2:"cannon", isStatic: true, collisionFilter:{category: launcherSet}, render:{fillStyle: 'gray'}});
-Composite.addBody(launcher, circleCannon); //add circleCannon to composite for constraint made later
-
-//console.log(circleCannon);
-
-// Create the ball
-var ball = Bodies.circle(60+30+10, 540, 10, { isStatic: true, label2:"ball", density: 0.01, collisionFilter:{category: launcherSet}, restitution:0.2});
-Composite.addBody(launcher, ball); //add ball to composite for constraint made next
-
-//create constraint on ball to stay around perimeter of circle launcher
-
-var ballConstraint =
-Constraint.create({
-            bodyA: circleCannon,
-            bodyB: ball
-        });
-
-Composite.addConstraint(launcher, ballConstraint); //we make sure the distance of centers between the ball and cannonCircle is constant
-worldObjects.push(launcher);
-//worldObjects.push(bgImage);
-
-function run_simulation(){
-
 // This is a hack to prevent physics from stopping at the edges of the canvas
 // source: https://github.com/liabru/matter-js/issues/67
-engine.world.bounds.min.x = -Infinity;
-engine.world.bounds.min.y = -Infinity;
-engine.world.bounds.max.x = Infinity;
-engine.world.bounds.max.y = Infinity;
+engine.world.bounds.min.x = engine.world.bounds.min.y = -Infinity;
+engine.world.bounds.max.x = engine.world.bounds.max.y = Infinity;
+
+var STATE_PRE_INIT = 0;
+var STATE_AFTER_INIT = 100;
+var STATE_NONE_CHOSEN = 200;
+var STATE_BALL_CHOSEN = 201
+var STATE_POWDER_CHOSEN = 202;
+var STATE_BALL_POWDER_CHOSEN = 203;
+var STATE_BALL_LAUNCHED = 300;
+var STATE_TARGET_HIT = 400;
+
+// Tracks the current state of the game
+var current_state;
+
+// Contains functions that help create each level, indexed by level
+var level_create_fns = [];
+
+// Common objects accessed by many parts of the code
+var launcher;
+var cannon;
+var ball;
+var target;
+var ballConstraint;
+
+// Matter.Runner object that tracks framerate
+var fps_runner;
+
+// To get mouse events to work must explicitly create mouse constraint now
+var mouseConstraint = MouseConstraint.create(engine);
+
+// Force with which to launch the ball
+var gp_force = 0;
+
+// Most recent mouse position from mosemove function
+var mousePos = {x:0, y:0};
+
+// Current level
+var current_level;
 
 
+/***********************************************************************
+ *                      Matter.js events
+ ***********************************************************************/
 // Set up callbacks for event handling
 //mouse events must come through a mouseConstraint
 Events.on(mouseConstraint, 'mousedown', mousedown);
 Events.on(mouseConstraint, 'mousemove', mousemove);
-Events.on(engine, 'beforeRender', beforeRender);
-Events.on(engine, 'afterRender', afterRender);
-//I don't know if this works. Not sure if the object should be engine. Look in events.js example for the newest code (find online)
-Events.on(engine, 'collisionEnd', afterCollision);
 Events.on(engine, 'afterUpdate', afterUpdate);
-
-
-
-create_world(worldObjects);
-
-// add all of the bodies to the world
-World.add(engine.world, worldObjects);
-
-// run the engine
-fps = Engine.run(engine);
-}
-
-
-var ball_fired = false;
-// Pull the ball towards the mouse when the user clicks
-function mousedown(event)
-{
-	Events.off(mouseConstraint); //turn off user's ability to interact (no more firing or changing position of ball)
-  // Calculate a vector pointing from the ball to the mouse
-  var vect = Vector.sub(event.mouse.mousedownPosition, ball.position);
-  var vecLength = Vector.magnitude(vect);
-  vect = Vector.mult(vect, 0.25);
-  var force = Vector.div(vect, vecLength);
-  force = Vector.mult(force, gp_force); //this is wonky
-  // Apply that vector as a force
-  //remove ballConstraint of launcher so the cannonball will move
-  Body.setStatic(ball, false);
-  console.log(ball.density);
-  console.log(ball.restitution);
-  Composite.removeConstraint(launcher, ballConstraint); 
-  Body.applyForce(ball, ball.position, force);
-  ball_fired = true;
-  times = 5;
-}
-
-// Make ball follow mouse defined in mouseConstraint
-var mousePos = {x:0, y:0};
-function mousemove(event)
-{
-
-  var radiusComp = Vector.sub(ball.position, circleCannon.position); //the motion of the center of the ball makes another "circle" around circleCannon
-  var radius = Vector.magnitude(radiusComp);
-  var angle = Vector.angle(circleCannon.position, event.mouse.position); //angle between PI and -PI relative to 0 x-axis
-  var newPos = Vector.create(radius*Math.cos(angle), radius*Math.sin(angle));
-  newPos = Vector.add(newPos, circleCannon.position);
-  //add ball the global worldObjects so it is affected by gravity
-  Body.setPosition(ball, newPos);
-  mousePos = event.mouse.position;
-}
-
-
-function calcFuture(body, force) {
-	// Copy body variables so we don't overwrite them
-	var x = body.position.x; var y = body.position.y;
-	var px = body.positionPrev.x; var py = body.positionPrev.y;
-	var vx = x - px; var vy = y - py;
-
-	// Precalculate stuff that won't change
-	var bodyMass = body.area * body.density;
-	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale * body.timeScale;
-    var deltaTimeSquared = Math.pow(fps.delta * engine.timing.timeScale * body.timeScale, 2);
-	var gravityX = bodyMass * engine.world.gravity.x * 0.001;
-	var gravityY = bodyMass * engine.world.gravity.y * 0.001;
-
-	// Calculate and store 180 physics timesteps into the future
-	var futurePositions = [];
-	for(i = 1; i < 180; i++)
-	{
-        // update velocity with Verlet integration
-        vx = (vx * frictionAir) + (force.x / bodyMass) * deltaTimeSquared;
-        vy = (vy * frictionAir) + (force.y / bodyMass) * deltaTimeSquared;
-
-        px = x;
-        py = y;
-        x += vx;
-        y += vy;
-		
-		futurePositions.push({x:x, y:y});
-		force = {x:gravityX, y:gravityY};
-    }
-	return futurePositions;
-}
+Events.on(engine, 'collisionEnd', afterCollision);
+Events.on(engine, 'afterRender', afterRender);
 
 function afterUpdate(event)
 {
 	render_variables();
 }
 
-function beforeRender(event){
-  if(currentLevel == 1){
-    engine.render.context.drawImage(nebula1, 0, 0);
-    render_variables();
-
-  }
-
-  else if(currentLevel == 2){
-    engine.render.context.drawImage(nebula2, 0, 0);
-    render_variables();
-
-  }
-
-  else if(currentLevel == 3){
-    engine.render.context.drawImage(nebula3, 0, 0);
-    render_variables();
-
-  }
-
-
-}
-// Draw FPS on the canvas
-function afterRender(event)
-{
-	var ctx = engine.render.context;
-	ctx.font = '20px Consolas';
-	
-
-  if(targetHit){
-	ctx.strokeStyle = 'yellow'
-	ctx.fillStyle = '#009900';
-	var width = 300; var height = 100;
-	ctx.fillRect((canvas.width - width ) / 2, (canvas.height - height) / 2, 300, 100);
-	ctx.strokeRect((canvas.width - width ) / 2, (canvas.height - height) / 2, 300, 100);
-    ctx.font = '20px Consolas';
-    ctx.fillStyle = '#efefef';
-    ctx.fillText("Level Complete!",430,300);
-  }
-  
-  if (!ball_fired)
-  {
-	var vect = Vector.sub(mousePos, ball.position);
-	var vecLength = Vector.magnitude(vect);
-	vect = Vector.mult(vect, 0.25);
-	var force = Vector.div(vect, vecLength);
-	force = Vector.mult(force, gp_force); 
-	var futurePositions = calcFuture(ball, force);
-	ctx.strokeStyle = 'yellow';
-	ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y);
-	
-	for(i in futurePositions)
-		ctx.lineTo(futurePositions[i].x, futurePositions[i].y);
-	ctx.stroke();
-  } 
-
-  ctx.fillStyle = 'yellow';
-	ctx.fillText(Math.round(fps.fps), 40, 40); //New way to display fps
-}
-
+// Check to see if the ball collided with the target
 function afterCollision(event)
 {
 	//console.log("after collision");
@@ -309,236 +100,383 @@ function afterCollision(event)
 	{
 		var a = event.pairs[k].bodyA;
 		var b = event.pairs[k].bodyB;
-		if (a.label2 == "ball" && b.label2 == "target")
-			targetHit = true;
-		if (b.label2 == "ball" && a.label2 == "target")
-			targetHit = true;
+		if ((a.name == "ball" && b.name == "target") || (a.name == "target" && b.name == "ball"))
+		{
+			// Run next level in 5 seconds...
+			current_state = STATE_TARGET_HIT;
+			setTimeout(run_level, DEBUG ? 500 : 5000, current_level + 1);
+		}
 	}
 }
 
-
-function create_world(worldObjects){
-
-	createLevel(worldObjects, currentLevel); //currentLevel is a global variable
+function afterRender(event)
+{
+	if (current_state == STATE_BALL_POWDER_CHOSEN)
+	{
+		// Determine the force with which the ball would be launched from here
+		var vect = Vector.sub(mousePos, ball.position);
+		var vecLength = Vector.magnitude(vect);
+		var unitVect = Vector.div(vect, vecLength);
+		var force = Vector.mult(unitVect, gp_force);
+		// Calculate future positions of the ball
+		var futurePositions = calcFuture(ball, force);
+		// Draw a line between each position in sequence	
+		ctx.strokeStyle = 'yellow';
+		ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y);
+		for(i in futurePositions)
+			ctx.lineTo(futurePositions[i].x, futurePositions[i].y);
+		ctx.stroke();
+	}
 	
-}
-
- function createLevel(worldObjects, level)
-    {
-        if (level == 1) {
-            createLevel1(worldObjects);
-        } else if (level == 2) {
-            createLevel2(worldObjects);
-        } else if (level == 3) {
-            createLevel3(worldObjects);
-        } else if (level == 4) {
-            createLevel4(worldObjects);
-        } else createLevel5(worldObjects);
-    }
-
+	if (current_state == STATE_TARGET_HIT)
+	{
+		draw_textbox("Level Complete! The next level will begin soon.", canvas.width/2, canvas.height/2, {
+			font:'24px Arial',
+			background:'#009900',
+			outline:'yellow',
+			x_margin:30,
+			y_margin:20
+		});
+	}
 	
-var target;
-function createLevel1(worldObjects)
-{
-
-worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula.jpg'}}}));
-// Create a custom shape
-worldObjects.push(target = Body.create({
-    position: { x: 600, y: 260 }
-  , restitution: 0.5
-  , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
-  , label2:"target"
-}));
-
-// Create some simple obstacles
-worldObjects.push(Bodies.rectangle(200, 300, 60, 20, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(150, 100, 20, 70, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(300, 400, 30, 90, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(600, 300, 60, 80, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(600, 300, 60, 80, { isStatic: true, render:{fillStyle: 'brown'}}));
-// Create the world borders
-var borderThickness = 100;  // Actual thickness of border (thicker means less chance of clipping through at high speeds)
-var borderVisible = 20;     // Thickness of border onscreen
-var borderOffset = (borderThickness - borderVisible) / 2;
-worldObjects.push(Bodies.rectangle(canvas.width / 2, canvas.height + borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'green'} })); // bottom
-worldObjects.push(Bodies.rectangle(canvas.width / 2, -borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'blue'}}));   // top
-worldObjects.push(Bodies.rectangle(-borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // left
-worldObjects.push(Bodies.rectangle(canvas.width + borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // right
-
+	if (DEBUG && current_state >= STATE_NONE_CHOSEN)
+		draw_textbox(Math.round(fps_runner.fps * 10) / 10, 20, 20, { centered: false });
+		
 }
 
-function createLevel2(worldObjects)
+function mousedown(event)
 {
-worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula2.jpg'}}}));
-// Create a custom shape
-worldObjects.push(target = Body.create({
-    position: { x: 600, y: 80 }
-  , restitution: 0.5
-  , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
-  , label2:"target"
-}));
-
-// Create some simple obstacles
-worldObjects.push(Bodies.rectangle(100, 200, 60, 20, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(400, 300, 60, 20, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(270, 100, 20, 70, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(300, 400, 30, 90, { isStatic: true, render:{fillStyle: 'brown'}}));
-
-worldObjects.push(Bodies.rectangle(600, 100, 60, 40, { isStatic: true, render:{fillStyle: 'brown'}}));
-
-// Create the world borders
-var borderThickness = 100;  // Actual thickness of border (thicker means less chance of clipping through at high speeds)
-var borderVisible = 20;     // Thickness of border onscreen
-var borderOffset = (borderThickness - borderVisible) / 2;
-worldObjects.push(Bodies.rectangle(canvas.width / 2, canvas.height + borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'green'} })); // bottom
-worldObjects.push(Bodies.rectangle(canvas.width / 2, -borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'blue'}}));   // top
-worldObjects.push(Bodies.rectangle(-borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // left
-worldObjects.push(Bodies.rectangle(canvas.width + borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // right
-
+	if (current_state < STATE_BALL_POWDER_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	// Turn off user's ability to interact (no more firing or changing position of ball)
+	//Events.off(mouseConstraint); 
+	// Calculate a vector pointing from the ball to the mouse
+	var vect = Vector.sub(event.mouse.mousedownPosition, ball.position);
+	var vecLength = Vector.magnitude(vect);
+	var unitVect = Vector.div(vect, vecLength);
+	var force = Vector.mult(unitVect, gp_force);
+	// Remove ballConstraint of launcher so the cannonball will move
+	Body.setStatic(ball, false);
+	Composite.removeConstraint(launcher, ballConstraint); 
+	// Apply that vector as a force
+	Body.applyForce(ball, ball.position, force);
+	current_state = STATE_BALL_LAUNCHED;
 }
 
-function createLevel3(worldObjects)
+// Make ball follow mouse defined in mouseConstraint
+function mousemove(event)
 {
-worldObjects.push(Bodies.rectangle(xMedian, yMedian, 1, 1, { isStatic: true, render:{sprite:{texture: 'images/nebula3.jpg'}}}));
-// Create a custom shape
-worldObjects.push(target = Body.create({
-    position: { x: 640, y: 275 }
-  , restitution: 0.5
-  , vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }]
-  , label2:"target"
-}));
+	mousePos = event.mouse.position;
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	var radius = ball.circleRadius + cannon.circleRadius;
+	var angle = Vector.angle(cannon.position, mousePos); //angle between PI and -PI relative to 0 x-axis
+	var newPos = Vector.create(radius*Math.cos(angle), radius*Math.sin(angle));
+	newPos = Vector.add(newPos, cannon.position);
+	Body.setPosition(ball, newPos);
+}
 
-// Create some simple obstacles
-worldObjects.push(Bodies.rectangle(600, 100, 40, 400, { isStatic: true, render:{fillStyle: 'brown'}}));
-worldObjects.push(Bodies.rectangle(640, 295, 40, 10, { isStatic: true, render:{fillStyle: 'brown'}}));
+/***********************************************************************
+ *                      Level Creation
+ ***********************************************************************/
+function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon)
+{
+	var xMedian = canvas.width / 2;
+	var yMedian = canvas.height / 2;
+	// Create the world borders
+	worldObjects.push(Bodies.rectangle(xMedian, canvas.height + 40, canvas.width + 100, 100, {name:"border", isStatic: true, render:{fillStyle: 'green'} })); // bottom
+	worldObjects.push(Bodies.rectangle(xMedian, -40, canvas.width + 100, 100, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));   // top
+	worldObjects.push(Bodies.rectangle(-40, yMedian, 100, canvas.height - 20, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));  // left
+	worldObjects.push(Bodies.rectangle(canvas.width + 40, yMedian, 100, canvas.height - 20, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));  // right
 
-//build a destructible wall
-//x pos, y pos, # rows, # cols, x spacing, y spacing
-var stack = Composites.stack(450, 200, 3, 3, 5, 0, function(x, y) {
-	return Bodies.rectangle(x, y, 30, 30, { density: 0.02});
+	worldObjects.push(target = Body.create({
+		position: { x: xTarget, y: yTarget },
+		restitution: 0.5,
+		vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }],
+		name:"target"
+	}));
+	
+	var launcherSet = 0x0002; //used to make ball and cannon not collide by putting them in same group
+	cannon = Bodies.circle(xCannon, yCannon, 30, { 
+		name:"cannon",
+		isStatic: true,
+		collisionFilter:{category: launcherSet},
+		render:{fillStyle: 'white'}
+	});
+	
+	ball = Bodies.circle(xCannon+30+10, yCannon, 10, {
+		name:"ball",
+		isStatic: true,
+		collisionFilter:{category: launcherSet},
+		render:{fillStyle: 'white'}
+	});
+	
+	// This composite groups both the cannon and ball into one "body"
+	launcher = Composite.create();
+	Composite.add(launcher, [ball, cannon]);
+	ballConstraint = Constraint.create({
+		bodyA: cannon,
+		bodyB: ball
+	});
+	Composite.addConstraint(launcher, ballConstraint); //we make sure the distance of centers between the ball and cannon is constant
+	worldObjects.push(launcher);
+}
+
+function create_obstacle(worldObjects, x, y, w, h)
+{
+	worldObjects.push(Bodies.rectangle(x, y, w, h, {name:"obstacle", isStatic: true, render:{fillStyle: 'brown'}}));
+}
+ 
+level_create_fns.push( function(worldObjects) {	 // level 0
+	create_common(worldObjects, 650, 450, 60, 540);
+	create_obstacle(worldObjects, 650, 480, 80, 40);
+	// build a destructible wall
+	// x pos, y pos, # cols, # rows, x spacing, y spacing
+	var stack = Composites.stack(450, 400, 1, 4, 5, 0, function(x, y) {
+		return Bodies.rectangle(x, y, 30, 30, { name:"stack", density: 0.02});
+	});
+	worldObjects.push(stack);
 });
 
-// Create the world borders
-var borderThickness = 100;  // Actual thickness of border (thicker means less chance of clipping through at high speeds)
-var borderVisible = 20;     // Thickness of border onscreen
-var borderOffset = (borderThickness - borderVisible) / 2;
-worldObjects.push(Bodies.rectangle(canvas.width / 2, canvas.height + borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'green'} })); // bottom
-worldObjects.push(Bodies.rectangle(canvas.width / 2, -borderOffset, canvas.width, borderThickness, { isStatic: true, render:{fillStyle: 'blue'}}));   // top
-worldObjects.push(Bodies.rectangle(-borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // left
-worldObjects.push(Bodies.rectangle(canvas.width + borderOffset, canvas.height / 2, borderThickness, canvas.height, { isStatic: true, render:{fillStyle: 'blue'}}));  // right
+level_create_fns.push( function(worldObjects) {	 // level 1
+	create_common(worldObjects, 600, 245, 60, 540);
+	create_obstacle(worldObjects, 200, 300, 60, 20);
+	create_obstacle(worldObjects, 150, 100, 20, 70);
+	create_obstacle(worldObjects, 600, 160, 30, 90);
+	create_obstacle(worldObjects, 600, 300, 60, 80);
+	create_obstacle(worldObjects, 600, 300, 60, 80);
+});
 
+level_create_fns.push( function(worldObjects) {	 // level 2
+	create_common(worldObjects, 600, 65, 60, 540);
+	create_obstacle(worldObjects, 100, 200, 60, 20);
+	create_obstacle(worldObjects, 400, 300, 60, 20);
+	create_obstacle(worldObjects, 270, 100, 20, 70);
+	create_obstacle(worldObjects, 300, 400, 30, 90);
+	create_obstacle(worldObjects, 600, 100, 60, 40);
+});
+
+level_create_fns.push( function(worldObjects) {	 // level 3
+	create_common(worldObjects, 640, 275, 60, 540);
+	create_obstacle(worldObjects, 600, 100, 40, 400);
+	create_obstacle(worldObjects, 640, 295, 40, 10);
+});
+
+
+/***********************************************************************
+ *                      Onclick Buttons
+ ***********************************************************************/
+function set_iron()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	Body.setDensity(ball, 0.09);
+	Body.setRestitution(ball, 0.4);
+	Body.setFillstyle(ball, '#7E7E7E');
+	current_state = current_state | 1;	// Set ball chosen flag
+}
+
+function set_steel()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	Body.setDensity(ball, 0.07);
+	Body.setRestitution(ball, 0.3);
+	Body.setFillstyle(ball, '#C1C1C1');
+	current_state = current_state | 1;
+}
+
+function set_rubber()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	Body.setDensity(ball, 0.05);
+	Body.setRestitution(ball, 0.8);
+	Body.setFillstyle(ball, '#EC2128');
+	current_state = current_state | 1;
 }
 
 
-//***********************************************
-//Setters: functions to set the amount1 and type1 variable
-//according to what the user clicked on in the webpage
-//***********************************************
-
-function set_iron(){
-
-  if(ball_is_clicked == false){
-
-    //draw_first_row(type1);
-    type1 = "1";
-	  Body.setDensity(ball, 0.09);
-    ballRestitution = 0.4;
-    Body.setRestitution(ball, ballRestitution);
-    ballColor = 'grey';
-    Body.setFillstyle(ball, ballColor);
-    ball_is_clicked = true;
-
-  }
-
+function set_gp1()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	gp_force = 1.25;
+	current_state = current_state | 2;	// Set powder chosen flag
 }
 
-function set_steel(){
-  
-  if(ball_is_clicked == false){
-
-    type1 = "2";
-	  Body.setDensity(ball, 0.07);
-    ballRestitution = 0.3;
-    Body.setRestitution(ball, ballRestitution);
-    ballColor = 'silver';
-    Body.setFillstyle(ball, ballColor);
-    ball_is_clicked = true;
-
-  }
-
+function set_gp2()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	gp_force = 1.75;
+	current_state = current_state | 2;
 }
 
-function set_rubber(){
-  
-  if(ball_is_clicked == false){
+function set_gp3()
+{
+	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
+		return;
+	gp_force = 2.15;
+	current_state = current_state | 2;
+}
+ 
+ /***********************************************************************
+ *                      Misc. Functions
+ ***********************************************************************/
+ function calcFuture(body, force)
+ {
+	// Copy body variables so we don't overwrite them
+	var x = body.position.x; var y = body.position.y;
+	var vx = x - body.positionPrev.x; var vy = y - body.positionPrev.y;
 
-    //draw_first_row(type1);
-    type1 = "3";
-	  Body.setDensity(ball, 0.05);
-    ballRestitution = 0.8;
-    Body.setRestitution(ball, ballRestitution);
-    ballColor = 'red';
-    Body.setFillstyle(ball, ballColor);
-    ball_is_clicked == true;
+	// Precalculate stuff that won't change
+	var bodyMass = body.area * body.density;
+	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale * body.timeScale;
+	var deltaTimeSquared = Math.pow(fps_runner.delta * engine.timing.timeScale * body.timeScale, 2);
+	var gravityX = bodyMass * engine.world.gravity.x * 0.001;
+	var gravityY = bodyMass * engine.world.gravity.y * 0.001;
 
-  }
-
+	// Calculate and store 180 physics timesteps into the future
+	var futurePositions = [];
+	for(i = 1; i < 180; i++)
+	{
+		// update velocity with Verlet integration
+		vx = (vx * frictionAir) + (force.x / bodyMass) * deltaTimeSquared;
+		vy = (vy * frictionAir) + (force.y / bodyMass) * deltaTimeSquared;
+		x += vx;
+		y += vy;
+		
+		futurePositions.push({x:x, y:y});
+		force = {x:gravityX, y:gravityY};
+	}
+	return futurePositions;
 }
 
-function set_gp1(){
-  
-  if(gp_is_clicked == false){
-    amount1 = "1";
+function run_level(n)
+{
+	if (n < 0 || n >= level_create_fns.length)
+	{	// This level is not defined
+		n = 0;
+	}
+	
+	// Stop existing simulation
+	if (typeof fps_runner != 'undefined')
+		Matter.Runner.stop(fps_runner);
 
-    if(type1 == "0"){
-        alert("You must choose a cannonball type first");
-    }
-
-    else{
-    	gp_force = 5;
-      gp_is_clicked = true;
-      mainclicked = true;
-	    main();
-    	run_simulation();
-	  }
-  }
-
+	// Clear previous bodies from world
+	World.clear(engine.world);
+	
+	// Reset array visualization
+	arrayVis_reset();
+	
+	current_state = STATE_PRE_INIT;
+	current_level = n;	// Set global level variable
+	
+	engine.render.options.background = 'images/nebula' + n + '.jpg'
+	
+	var worldObjects = [];
+	console.log(n);
+	level_create_fns[n](worldObjects);
+	fps_runner = Engine.run(engine);
+	
+	current_state = STATE_AFTER_INIT;
+	
+	// Freeze simulation while adding objects
+	engine.timing.timeScale = 0;
+	
+	show_next_body.bodies = [];
+	show_next_body.next = 0;
+	for (var k in worldObjects)
+	{
+		var obj = worldObjects[k];
+		if (obj.type == "composite")
+		{
+			// Get a list of all bodies in this composite
+			var allComposite = Composite.allBodies(obj);
+			// Make them all invisible
+			for(var i = 0; i < allComposite.length; i++)
+			{
+				show_next_body.bodies.push(allComposite[i])
+				allComposite[i].render.visible = false;
+			}
+		}
+		else
+		{
+			show_next_body.bodies.push(obj);
+			obj.render.visible = false;
+		}
+		
+		// Add it to the world
+		World.add(engine.world, obj);
+	}
+	
+	show_next_body("finished");
 }
 
-function set_gp2(){
-
-  if(gp_is_clicked == false){
-    amount1 = "2";
-    if(type1 == "0"){
-        alert("You must choose a cannonball type first");
-    }
-
-    else{
-    	gp_force = 7;
-      gp_is_clicked = true;
-      mainclicked = true;
-      main();
-    	run_simulation();
-	  }
-  }
-
+function show_next_body(reason)
+{
+	if (reason != "finished")
+	{
+		console.warn("show_next_body: arrayVis did not complete successfully (" + reason + ")");
+		return;
+	}
+	if (show_next_body.next > 0)
+	{
+		var prev_obj = show_next_body.bodies[show_next_body.next - 1];
+		prev_obj.render.visible = true;
+	}
+	
+	if (show_next_body.next == show_next_body.bodies.length)
+	{
+		current_state = STATE_NONE_CHOSEN;
+		engine.timing.timeScale = 1;
+		return;
+	}
+	
+	var next_obj = show_next_body.bodies[show_next_body.next];
+	arrayVis_insert(next_obj.name, show_next_body);
+	
+	show_next_body.next += 1;
 }
 
-function set_gp3(){
+// Draws a text box centered at (xCenter, yCenter)
+function draw_textbox(text, xCenter, yCenter, options)
+{
+	var defaults = {
+		x_margin: 5,
+		y_margin: 5,
+		background: 'white',
+		outline: 'black',
+		fillStyle: 'black',
+		font: '16px Arial',
+		centered: true
+	}
+	var tb = Matter.Common.extend(defaults, options);
 
-  if(gp_is_clicked == false){
-    amount1 = "3";
-    if(type1 == "0"){
-        alert("You must choose a cannonball type first");
-    }
-
-    else{
-      gp_force = 8.65;
-      gp_is_clicked = true;
-      mainclicked = true;
-      main();
-      run_simulation();
-    } 
-  }
-
+	var ctxBackup;
+	saveProperties(ctx, ctxBackup);	//saveProperties defined in visualize.js
+	
+	ctx.font = tb.font;
+	var h = pixiGetFontHeight(ctx.font) + 2 * tb.y_margin;	// pixiGetFontHeight defined in visualize.js
+	var w = ctx.measureText(text).width + 2 * tb.x_margin;
+	var x, y;
+	if (tb.centered == true)
+		x = xCenter - w/2, y = yCenter - h/2;
+	else
+		x = xCenter, y = yCenter;
+	
+	ctx.fillStyle = tb.background; ctx.strokeStyle = tb.outline;
+	ctx.fillRect(x, y, w, h);
+	ctx.strokeRect(x, y, w, h);
+	
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+	ctx.fillStyle = tb.fillStyle; 
+	ctx.fillText(text, x + tb.x_margin, y + tb.y_margin);
+	
+	restoreProperties(ctx, ctxBackup);
 }
+
+
+// Start off at level 0
+run_level(0);

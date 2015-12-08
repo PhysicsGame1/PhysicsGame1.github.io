@@ -30,7 +30,7 @@ li{
   background-color: #f0f0f0;
 }
 #vis_selector li{
-    padding: 6px 85px 6px 86px;
+    padding: 6px 107px 6px 86px;
 }
 .vis_tab{
   width: 100%;
@@ -43,6 +43,9 @@ li{
 }
 #v_tab{
   cursor: pointer;
+}
+#vis{
+  width: 500px;
 }
 td{
   padding: 0;
