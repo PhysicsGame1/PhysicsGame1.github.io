@@ -2,10 +2,13 @@
  *                      Global definitions
  ***********************************************************************/
 var DEBUG = true;		// Set to true to enable various features for testing
-var START_LEVEL = 6;	// This level will be run when the game starts
+var START_LEVEL = 7;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
+
+//global variable holding objects for level	
+var level_bodies = [];
 
 var Engine = Matter.Engine,								//manages updating and rendering canvas
 		World = Matter.World,							//composite of entire canvas
@@ -17,6 +20,7 @@ var Engine = Matter.Engine,								//manages updating and rendering canvas
 		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
 		Vector = Matter.Vector;							//for vector algebra
 
+	
 
 // Set up renderer and engine options (see link for more options)
 // TODO: We are getting a warning saying element is undefined. It is set to null by default. What element should we tie it to? The API says it's optional but still
@@ -151,11 +155,11 @@ var ball_type;
 
 function beforeUpdate(event)
 {
-	//if(current_level == 5)
-	//	checkLevelFive();
+	if(current_level == 7)
+		checkChrisLevelOne();
 }
 
-function checkLevelFive()
+function checkChrisLevelOne()
 {
 	for(var i = 0; i < level_bodies.length; ++i)
 	{
@@ -678,12 +682,15 @@ function run_level(n, use_visualization)
 			{
 				show_next_body.bodies.push(allComposite[i])
 				allComposite[i].render.visible = (!use_visualization);
+				
+				level_bodies.push(allComposite[i]); //add composite body to levels_bodies array
 			}
 		}
 		else
 		{
 			show_next_body.bodies.push(obj);
 			obj.render.visible = (!use_visualization);
+			level_bodies.push(obj); //add body to levels_bodies array
 		}
 		
 		// Add it to the world
