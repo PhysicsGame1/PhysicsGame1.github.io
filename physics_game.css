@@ -23,26 +23,42 @@ li{
   padding: 10px;
   padding-left: 5%;
   float: left;
-  margin-top: -20px;
+  margin-top: -38px;
+}
+#top_nav ul{
+  width: 250px;
 }
 .nav{
-  text-decoration: none;
-  color: #efefef;
   font-size: 20px;
   cursor: pointer;
   margin: 0;
-  padding: 5px 15px;
-  
 }
-.nav:hover{
+.nav a{
+  text-decoration: none;
+  color: #efefef;
+  padding: 5px 15px;
+}
+.nav a:hover{
   background: #006600
 }
-.dropdown{
+.nav:hover ul{
+  display: block;
+}
+.nav ul{
   display: none;
-  background: #060;
   position: relative;
-  left: -90px;
-  top: 33px;
+  background: #060;
+  float: right;
+}
+.nav ul li{
+  display: block;
+  padding: 5px 15px;
+}
+#games{
+  left: 83px;
+}
+#info{
+  left: 173px;
 }
 #page_title{
   width: 50%;

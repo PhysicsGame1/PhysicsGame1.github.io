@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+	<meta charset="utf-8"/>
+  	<link type="text/css" rel="stylesheet" href="physics_game.css" />
+  	<link type="text/css" rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+  	<!-- <h1 id="top_bar">Physics Game!</h1> -->
+  	<div id="top_bar">
+	  	<div id="top_nav">
+	  		<ul>
+	  			<li class="nav"><a href="home.html">Home</a></li>
+	  			<li class="nav"><a href="#">Games</a>
+	  				<ul id="games">
+	  					<li><a href="index.html">Physics Game</a></li>
+	  				</ul>
+	  			</li>
+	  			<li class="nav"><a href="#">Info</a>
+	  				<ul id="info">
+	  					<li><a href="#">Physics Game Info</a></li>
+	  				</ul>
+	  			</li>
+	  		</ul>
+	  	</div>
+	  	<div id="page_title">Average Joe's Learning Games</div>
+	  </div>
+	  <div id="content">
+	  	<ul>
+	  		<li id='select_game'>
+	  			<button onclick="linkToGame()">Play a game</button>
+	  		</li>
+	  		<li id='select_learn'>
+	  			<button>Learn</button>
+	  		</li>
+	  	</ul>
+	  </div>
+	</body>
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+	<script type="text/javascript" src="input.js"></script>
+	<script>function linkToGame(){window.location.assign('/');}</script>
+</html>

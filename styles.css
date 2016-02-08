@@ -1,0 +1,17 @@
+#content{
+  width: 1024px;
+  margin: auto;
+}
+#content ul li button{
+  width: 25%;
+  margin: 11%;
+  padding: 30px;
+  font-size: 20px;
+  border-radius: 5px;
+}
+#select_game{
+  
+}
+#select_learn{
+  
+}

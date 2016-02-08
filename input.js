@@ -66,7 +66,9 @@ $(document).ready(function(){
     }
     reload();
   }
-
+  function linkToGame(){
+    window.location.assign('/');
+  }
   //visualization selection
   $(".vis_tab").click(function(){
     if($(this).attr("id") == "a_tab"){
