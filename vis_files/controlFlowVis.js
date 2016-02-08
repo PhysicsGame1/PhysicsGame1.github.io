@@ -1,10 +1,17 @@
 type1 = 0;
 amount1 = 0;
+renderCF = false;   //not default visualization
 //*************************************************
 //draw_first_row: takes the type as a parameter and 
 //draws the first row of the flow chart according 
 //to what value is in the type1 variable
 //*************************************************
+
+function enable_cf_vis(){
+    arrayVis_enableRender.rendering = false;
+    bRenderVars = false;
+    renderCF = true;
+}
 
 function draw_first_row(type1){
 
@@ -160,6 +167,9 @@ function draw_rows(ty, am, can, ctx)
 //**********************************************
 function draw_flow_chart(t, a)
 { 
+    if(!renderCF){
+        return;
+    }
     var canvas = document.getElementById("v_canvas");
     var c = canvas.getContext("2d");
     bRenderVars = false;
@@ -359,4 +369,3 @@ function draw_flow_chart(t, a)
         }
 
     }
-draw_flow_chart(type1, amount1);

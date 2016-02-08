@@ -1,7 +1,8 @@
 ﻿/***********************************************************************
  *                      Global definitions
  ***********************************************************************/
-var DEBUG = false;
+var DEBUG = true;		// Set to true to enable various features for testing
+var START_LEVEL = 6;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
@@ -13,7 +14,6 @@ var Engine = Matter.Engine,								//manages updating and rendering canvas
 		Events = Matter.Events,							//used for mouse events like mousdown, mousemove, and mouseup
 		Composite = Matter.Composite,					//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
 		Composites = Matter.Composites,					//used to build composites (combining lots of shapes into structures like walls etc)
-		Constraint = Matter.Constraint,					//used to create launcher for the ball 
 		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
 		Vector = Matter.Vector;							//for vector algebra
 
@@ -29,37 +29,37 @@ var engine = Engine.create({
 			wireframes: false,		// Do not render wireframes
 			showVelocity: false,	// Show velocity vectors
 			showCollisions: false,	// Show collision vectors
-			showSleeping: false		// Do not do special rendering for sleeping bodies
+			showSleeping: false,	// Do not do special rendering for sleeping bodies
+			width:1024,
+			height:600
 		}
 }});
 
-// This is a hack to prevent physics from stopping at the edges of the canvas
-// source: https://github.com/liabru/matter-js/issues/67
-engine.world.bounds.min.x = engine.world.bounds.min.y = -Infinity;
-engine.world.bounds.max.x = engine.world.bounds.max.y = Infinity;
-
 var STATE_PRE_INIT = 0;
 var STATE_AFTER_INIT = 100;
-var STATE_NONE_CHOSEN = 200;
-var STATE_BALL_CHOSEN = 201
-var STATE_POWDER_CHOSEN = 202;
-var STATE_BALL_POWDER_CHOSEN = 203;
-var STATE_BALL_LAUNCHED = 300;
-var STATE_TARGET_MISSED = 375;
+var STATE_RUNNING_VISUALIZATION = 101;
+
+var STATE_MOUSEUP = 200;
+var STATE_MOUSEDOWN = 300;
+
 var STATE_TARGET_HIT = 400;
+
+
+var STATE_START_MENU = 600;
+var STATE_PAUSE_MENU = 601;
+var STATE_LEVEL_SELECT_MENU = 610;
+
 
 // Tracks the current state of the game
 var current_state;
+var paused_state;
 
 // Contains functions that help create each level, indexed by level
 var level_create_fns = [];
 
 // Common objects accessed by many parts of the code
-var launcher;
-var cannon;
 var ball;
 var target;
-var ballConstraint;
 
 // Matter.Runner object that tracks framerate
 var fps_runner;
@@ -67,18 +67,69 @@ var fps_runner;
 // To get mouse events to work must explicitly create mouse constraint now
 var mouseConstraint = MouseConstraint.create(engine);
 
-// Force with which to launch the ball
-var gp_force = 0;
-
 // Most recent mouse position from mosemove function
 var mousePos = {x:0, y:0};
 
 // Current level
-var current_level;
+var current_level = START_LEVEL;
 
-// The last user ball/powder choice
-var ball_choice_fn = DEBUG ? set_steel : function(){};
-var powder_choice_fn = DEBUG ? set_gp2 : function(){};
+// This function creates the currently selected ball type
+var ball_create_fn; set_steel();
+
+// Variable to control the camera, see: matterjs_camera.js
+var camera = new matterjs_camera(engine);
+
+// Variable to control the ball spawn zone
+var spawn_zone = {x:9001, y:9001, r:100, max_pull:200, divisor:50};
+
+// Frame counter
+var frame = 0;
+
+/***********************************************************************
+ *                      Buttons
+ ***********************************************************************/
+var buttons = {};
+buttons['Pause'] = new matterjs_button(engine, "Pause", 5, 5, function ()
+{
+	paused_state = current_state;
+	current_state = STATE_PAUSE_MENU;
+});
+
+buttons['Debug'] = new matterjs_button(engine, "Debug", 5, 40, function ()
+{
+	DEBUG = !DEBUG;
+	console.log('DEBUG = ' + DEBUG);
+});
+
+
+var ball_madness = false;
+buttons['Balls'] = new matterjs_button(engine, "Balls", 5, 75, function ()
+{
+	ball_madness = !ball_madness;
+});
+
+buttons['Start'] = new matterjs_button(engine, "Start", canvas.width / 2, canvas.height / 2 + 50, function ()
+{
+	run_level(START_LEVEL, true);
+}, {centered:true, font:'bold 28px monospace'});
+
+buttons['Restart'] = new matterjs_button(engine, 'Restart', canvas.width / 2, canvas.height / 2 - 50, function ()
+{
+	run_level(current_level, false);
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Quit'] = new matterjs_button(engine, 'Quit', canvas.width / 2, canvas.height / 2, function ()
+{
+	reset_engine();
+	current_state = STATE_START_MENU;
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Cancel'] = new matterjs_button(engine, 'Cancel', canvas.width / 2, canvas.height / 2 + 50, function ()
+{
+	current_state = paused_state;
+}, {centered:true, font:'bold 24px monospace'});
+
+
 
 /***********************************************************************
  *                      Matter.js events
@@ -87,28 +138,90 @@ var powder_choice_fn = DEBUG ? set_gp2 : function(){};
 //mouse events must come through a mouseConstraint
 Events.on(mouseConstraint, 'mousedown', mousedown);
 Events.on(mouseConstraint, 'mousemove', mousemove);
+Events.on(mouseConstraint, 'mouseup', mouseup);
+Events.on(engine, 'beforeUpdate', beforeUpdate);
 Events.on(engine, 'afterUpdate', afterUpdate);
 Events.on(engine, 'collisionEnd', afterCollision);
 Events.on(engine, 'afterRender', afterRender);
+document.addEventListener('keyup', keyup);
+document.addEventListener('keydown', keydown);
+
+var gp_amount;
+var ball_type;
+
+function beforeUpdate(event)
+{
+	//if(current_level == 5)
+	//	checkLevelFive();
+}
+
+function checkLevelFive()
+{
+	for(var i = 0; i < level_bodies.length; ++i)
+	{
+		k = level_bodies[i];
+		var vx = 10 * Math.cos(k.angle + Math.PI);
+		var vy = 10 * Math.sin(k.angle + Math.PI);
+		if(k.name == "vertSpin")
+		{
+			//alert("Inside vertSpin. Decision One TRUE. name = " + k.name);
+			var py = 100 * Math.sin(engine.timing.timestamp * 0.002);
+			var px = 100 * Math.cos(engine.timing.timestamp * 0.002);
+			//Body.setVelocity(k, { x: 0, y: 50 - py});
+			Body.setAngularVelocity(k, 0.02);
+			Body.setPosition(k, { x: k.position.x, y: 450 -  py});
+			if(engine.timing.timeScale != 0)
+				Body.rotate(k, 0.03);
+				
+		}
+		else if(k.name == "vertSpin2")
+		{
+			//alert("Inside vertSpin2. Decision Two TRUE. name = " + k.name);
+			var py = 150 * Math.sin(engine.timing.timestamp * 0.004);
+			var px = 150 * Math.sin(engine.timing.timestamp * 0.004);
+			//Body.setVelocity(k, { x: vx, y: vy});
+			Body.setAngularVelocity(k, -0.01);
+			Body.setPosition(k, { x: k.position.x, y: 550 - py});
+			if(engine.timing.timeScale != 0)
+				Body.rotate(k, -0.02);
+				
+		}
+		else
+		{
+			//alert("Failed both decisions. name = " + k.name);
+		}
+	}
+}
 
 function afterUpdate(event)
 {
-	if (current_state == STATE_BALL_LAUNCHED)
+	frame++;
+	if (is_ready_to_fire() && ball_madness && frame % 6 == 0)
 	{
-		setTimeout(function(x, y) {
-			if (current_state == STATE_BALL_LAUNCHED && Math.abs(ball.position.x-x) < 1 && Math.abs(ball.position.y-y) < 1)
-			{
-				current_state = STATE_TARGET_MISSED;
-				setTimeout(run_level, DEBUG ? 500 : 4000, current_level, false);
-			}}, 1000, ball.position.x, ball.position.y);
+		var sc = current_state;
+		ball_create_fn(spawn_zone);
+		current_state = STATE_MOUSEDOWN;
+		mouseup({mouse:{position:mouseConstraint.mouse.absolute}});
+		current_state = sc;
 	}
+	
+	buttons['Pause'].options.enabled = is_pausible();
+	buttons['Balls'].options.visible = is_ready_to_fire() && DEBUG;
+	buttons['Start'].options.visible = current_state == STATE_START_MENU;
+	buttons['Restart'].options.visible = current_state == STATE_PAUSE_MENU;
+	buttons['Quit'].options.visible = current_state == STATE_PAUSE_MENU;
+	buttons['Cancel'].options.visible = current_state == STATE_PAUSE_MENU;
+	
+	
 	render_variables();
+	if (ball_type != null && gp_amount != null)
+		draw_flow_chart(ball_type, gp_amount);
 }
 
 // Check to see if the ball collided with the target
 function afterCollision(event)
 {
-	if (current_state != STATE_BALL_LAUNCHED)
+	if (!is_playing() || current_state == STATE_TARGET_HIT)
 		return;
 	//console.log("after collision");
 	for(var k in event.pairs)
@@ -119,28 +232,65 @@ function afterCollision(event)
 		{
 			// Run next level in 5 seconds...
 			current_state = STATE_TARGET_HIT;
-			setTimeout(run_level, DEBUG ? 500 : 5000, current_level + 1);
+			setTimeout(function() { run_level(current_level + 1); }, DEBUG ? 500 : 5000);
 		}
 	}
 }
 
 function afterRender(event)
 {
-	if (current_state == STATE_BALL_POWDER_CHOSEN)
+	// Draw spawn_zone
+	var can_pos = worldToCanvasPt(spawn_zone);
+	var x = can_pos.x; var y = can_pos.y; var r = spawn_zone.r / camera.zoom;
+	// Transparent background...
+	ctx.beginPath();
+	ctx.fillStyle = 'rgba(66, 99, 200, 0.45)';
+	ctx.arc(x, y, r, 0, 2 * Math.PI);
+	ctx.fill();
+	// Moving gradient
+	var gradient = ctx.createRadialGradient(x,y,r,x,y,0);
+	var a = Math.max(0.5 + Math.sin(engine.timing.timestamp / 800) / 2.05, 0.005);
+	gradient.addColorStop(0,"transparent");
+	gradient.addColorStop(Math.max(a-0.5, 0),"transparent");
+	gradient.addColorStop(a, 'rgb(66, 99, 200)');
+	gradient.addColorStop(Math.min(a+0.5, 1),"transparent");
+	ctx.fillStyle = gradient;
+	ctx.fillRect(x-r, y-r , 2 * r, 2 * r);	
+	if (ball != null)
+		Body.redraw(engine, ball);
+
+	if (current_state == STATE_MOUSEDOWN)
 	{
 		// Determine the force with which the ball would be launched from here
-		var vect = Vector.sub(mousePos, ball.position);
-		var vecLength = Vector.magnitude(vect);
-		var unitVect = Vector.div(vect, vecLength);
-		var force = Vector.mult(unitVect, gp_force);
-		// Calculate future positions of the ball
-		var futurePositions = calcFuture(ball, force);
-		// Draw a line between each position in sequence	
-		ctx.strokeStyle = 'yellow';
-		ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y);
-		for(i in futurePositions)
-			ctx.lineTo(futurePositions[i].x, futurePositions[i].y);
-		ctx.stroke();
+		var mouseDist = Vector.sub(canvasToWorldPt(mousePos), ball.position);
+		var angle = Vector.angle(canvasToWorldPt(mousePos), ball.position); //angle between PI and -PI relative to 0 x-axis
+		var netF = Math.min(Vector.magnitude(mouseDist), spawn_zone.max_pull);
+		
+		
+		if (DEBUG)
+		{ // Draw a trajectory
+			netF /= spawn_zone.divisor;
+			var force = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
+			// Calculate future positions of the ball
+			var futurePositions = calcFuture(ball, force);
+			// Draw a line between each position in sequence	
+			ctx.strokeStyle = 'yellow';
+			var ballpos = worldToCanvasPt(ball.position);
+			ctx.beginPath(); ctx.moveTo(ballpos.x, ballpos.y);
+			for(i in futurePositions)
+			{
+				var tmp = worldToCanvasPt(futurePositions[i]);
+				ctx.lineTo(tmp.x, tmp.y);
+			}
+			ctx.stroke();
+		}
+		else
+		{  // Draw a simple arrow
+			var direction = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
+			var ballpos = worldToCanvasPt(ball.position);
+			var arrowtip = worldToCanvasPt(Vector.add(ball.position, direction));
+			draw_arrow(ballpos.x, ballpos.y, arrowtip.x, arrowtip.y);	
+		}
 	}
 	
 	if (current_state == STATE_TARGET_HIT)
@@ -154,66 +304,117 @@ function afterRender(event)
 		});
 	}
 	
-	if (current_state == STATE_TARGET_MISSED)
+	if (DEBUG && is_playing())
 	{
-		draw_textbox("You missed! The level will restart soon.", canvas.width/2, canvas.height/2, {
-			font:'24px Arial',
-			background:'#009900',
-			outline:'yellow',
-			x_margin:30,
-			y_margin:20
-		});
+		// Draw FPS
+		draw_textbox('FPS:' + round(fps_runner.fps, 1), canvas.width - 100, 5, { centered: false });
+		// Draw Coordinates
+		var wpt = canvasToWorldPt(mouseConstraint.mouse.absolute);
+		draw_textbox(mouseConstraint.mouse.button, mousePos.x, mousePos.y + 30, { centered: false });
 	}
 	
-	if (DEBUG && current_state >= STATE_NONE_CHOSEN)
-		draw_textbox(Math.round(fps_runner.fps * 10) / 10, 20, 20, { centered: false });
-		
+	if (is_in_menu())
+	{
+		ctx.fillStyle = '#009900'; ctx.strokeStyle = 'yellow';
+		var x = 0, y = 0, w = canvas.width, h = canvas.height;
+		ctx.fillRect(x, y, w, h);
+		ctx.strokeRect(x, y, w, h);
+		if (current_state == STATE_START_MENU)
+		{
+			ctx.font = '48px Monospace';
+			ctx.fillStyle = 'black';
+			ctx.fillText('Physics Game', (w - ctx.measureText('Physics Game').width) / 2, h / 2 - 40);
+		}
+	}
+	
+	for (k in buttons)
+		buttons[k].draw();
 }
 
 function mousedown(event)
 {
-	if (current_state < STATE_BALL_POWDER_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	// Turn off user's ability to interact (no more firing or changing position of ball)
-	//Events.off(mouseConstraint); 
-	// Calculate a vector pointing from the ball to the mouse
-	var vect = Vector.sub(event.mouse.mousedownPosition, ball.position);
-	var vecLength = Vector.magnitude(vect);
-	var unitVect = Vector.div(vect, vecLength);
-	var force = Vector.mult(unitVect, gp_force);
-	// Remove ballConstraint of launcher so the cannonball will move
-	Body.setStatic(ball, false);
-	Composite.removeConstraint(launcher, ballConstraint); 
-	// Apply that vector as a force
-	Body.applyForce(ball, ball.position, force);
-	current_state = STATE_BALL_LAUNCHED;
+	console.log("mousedown");
+	var mx = event.mouse.position.x;
+	var my = event.mouse.position.y;
+	
+	for (k in buttons)
+	{
+		if (buttons[k].mouseup())
+			return;
+	}
+	
+	if (is_ready_to_fire())
+	{
+		// Check for click in spawn zone
+		var wpos = canvasToWorldPt(mousePos);
+		var dx = wpos.x - spawn_zone.x;
+		var dy = wpos.y - spawn_zone.y;
+		if (Math.sqrt(dx*dx + dy*dy) > spawn_zone.r)
+			return;
+		// Spawn a ball
+		ball_create_fn(wpos);
+		current_state = STATE_MOUSEDOWN;
+	}
 }
 
-// Make ball follow mouse defined in mouseConstraint
+
 function mousemove(event)
 {
 	mousePos = event.mouse.position;
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	var radius = ball.circleRadius + cannon.circleRadius;
-	var angle = Vector.angle(cannon.position, mousePos); //angle between PI and -PI relative to 0 x-axis
-	var newPos = Vector.create(radius*Math.cos(angle), radius*Math.sin(angle));
-	newPos = Vector.add(newPos, cannon.position);
-	Body.setPosition(ball, newPos);
+	
 }
+
+function mouseup(event)
+{
+	if (current_state != STATE_MOUSEDOWN)
+		return;
+	var mouseDist = Vector.sub(canvasToWorldPt(event.mouse.position), ball.position);
+	
+	var angle = Vector.angle(canvasToWorldPt(event.mouse.position), ball.position); //angle between PI and -PI relative to 0 x-axis
+	var netF = Math.min(Vector.magnitude(mouseDist), spawn_zone.max_pull) / spawn_zone.divisor;
+	var force = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
+	ball.timeScale = 1;
+	Body.applyForce(ball, ball.position, force);
+	current_state = STATE_MOUSEUP;
+}
+
+function keydown(event)
+{
+	console.log(event);
+}
+
+function keyup(event)
+{
+	if (event.key == 's')
+	{
+		if (current_state == STATE_RUNNING_VISUALIZATION)
+			arrayVis_stop();
+	}
+	
+}
+
 
 /***********************************************************************
  *                      Level Creation
  ***********************************************************************/
-function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon)
+function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon, xmin, xmax, ymin, ymax)
 {
-	var xMedian = canvas.width / 2;
-	var yMedian = canvas.height / 2;
+	if (typeof xmin === 'undefined') xmin = 0;
+	if (typeof ymin === 'undefined') ymin = 0;
+	if (typeof xmax === 'undefined') xmax = canvas.width;
+	if (typeof ymax === 'undefined') ymax = canvas.height;
+	
+	camera.fitToBounds(xmin, xmax, ymin, ymax);
+	
+	var xLength = xmax - xmin;
+	var yLength = ymax - ymin;
+	var xMedian = (xmax + xmin) / 2;
+	var yMedian = (ymax + ymin) / 2;
 	// Create the world borders
-	worldObjects.push(Bodies.rectangle(xMedian, canvas.height + 40, canvas.width + 100, 100, {name:"border", isStatic: true, render:{fillStyle: 'green'} })); // bottom
-	worldObjects.push(Bodies.rectangle(xMedian, -40, canvas.width + 100, 100, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));   // top
-	worldObjects.push(Bodies.rectangle(-40, yMedian, 100, canvas.height - 20, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));  // left
-	worldObjects.push(Bodies.rectangle(canvas.width + 40, yMedian, 100, canvas.height - 20, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));  // right
+	worldObjects.push(Bodies.rectangle(xMedian, ymax + 50, xLength + 200, 100, {name:"border", isStatic: true, render:{fillStyle: 'green'} }));	// bottom
+	worldObjects.push(Bodies.rectangle(xMedian, ymin - 50, xLength + 200, 100, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));	// top
+	worldObjects.push(Bodies.rectangle(xmin - 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));	// left
+	worldObjects.push(Bodies.rectangle(xmax + 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{fillStyle: 'blue'}}));	// right
 
 	worldObjects.push(target = Body.create({
 		position: { x: xTarget, y: yTarget },
@@ -221,31 +422,9 @@ function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon)
 		vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }],
 		name:"target"
 	}));
-	
-	var launcherSet = 0x0002; //used to make ball and cannon not collide by putting them in same group
-	cannon = Bodies.circle(xCannon, yCannon, 30, { 
-		name:"cannon",
-		isStatic: true,
-		collisionFilter:{category: launcherSet},
-		render:{fillStyle: 'white'}
-	});
-	
-	ball = Bodies.circle(xCannon+30+10, yCannon, 10, {
-		name:"ball",
-		isStatic: true,
-		collisionFilter:{category: launcherSet},
-		render:{fillStyle: 'white'}
-	});
-	
-	// This composite groups both the cannon and ball into one "body"
-	launcher = Composite.create();
-	Composite.add(launcher, [ball, cannon]);
-	ballConstraint = Constraint.create({
-		bodyA: cannon,
-		bodyB: ball
-	});
-	Composite.addConstraint(launcher, ballConstraint); //we make sure the distance of centers between the ball and cannon is constant
-	worldObjects.push(launcher);
+
+	spawn_zone.x = xCannon;
+	spawn_zone.y = yCannon;
 }
 
 function create_obstacle(worldObjects, x, y, w, h)
@@ -289,68 +468,121 @@ level_create_fns.push( function(worldObjects) {	 // level 3
 });
 
 
+level_create_fns.push( function(worldObjects) {	 // level 4
+	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
+	create_obstacle(worldObjects, 640, 295, 140, 10);
+	create_obstacle(worldObjects, 400, 300, 160, 20);
+	create_obstacle(worldObjects, 270, 100, 520, 70);
+	create_obstacle(worldObjects, 370, 800, 120, 570);
+	create_obstacle(worldObjects, -370, 120, 300, 70);
+	create_obstacle(worldObjects, -270, -100, 150, 150);
+	create_obstacle(worldObjects, 840, 525, 30, 150);
+});
+
+level_create_fns.push( function(worldObjects) {	 // level 5
+	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
+	create_obstacle(worldObjects, 540, 295, 140, 10);
+	create_obstacle(worldObjects, 40, 230, 160, 20);
+	create_obstacle(worldObjects, 270, 50, 320, 70);
+	create_obstacle(worldObjects, 370, 800, 120, 570);
+	create_obstacle(worldObjects, -370, 120, 150, 70);
+	create_obstacle(worldObjects, -270, -100, 60, 100);
+	create_obstacle(worldObjects, 640, 525, 50, 70);
+});
+
+level_create_fns.push( function(worldObjects) {	 // level 6
+	create_common(worldObjects, 550, 550, -800, 540, -1024, 1024, -600, 600);
+	create_obstacle(worldObjects, 420, 300, 50, 50);
+	create_obstacle(worldObjects, 340, -125, 350, 70);	
+	create_obstacle(worldObjects, 0, 0, 250, 20);
+
+	var stack = Composites.stack(400, 320, 2, 14, 5, 0, function(x, y) {
+		return Bodies.rectangle(x, y, 20, 20, { name:"stack", density: 0.02});
+	});
+	worldObjects.push(stack);
+	
+	var stack1 = Composites.stack(400, 100, 2, 8, 5, 0, function(x, y) {
+		return Bodies.rectangle(x, y, 20, 20, { name:"stack", density: 0.02});
+	});
+	worldObjects.push(stack1);
+	
+});
+
+level_create_fns.push( function(worldObjects) {	 // Chris level 7
+	create_common(worldObjects, 870, 450, 60, 540);
+		
+	var circleStack = Composites.stack(200, 185, 8, 1, 20, 0, function(x, y) {
+            return Bodies.circle(x, y, 30, {name:"explode"});
+        });
+
+	var spinbar = Bodies.rectangle(300, 500, 200, 10, {name:"vertSpin", isStatic: true, render:{fillStyle: 'brown'}});
+	var spinbar2 = Bodies.rectangle(500, 300, 200, 10, {name:"vertSpin2", isStatic: true, render:{fillStyle: 'brown'}});
+	var spinbar3 = Bodies.rectangle(700, 300, 200, 20, {name:"vertSpin", isStatic: true, render:{fillStyle: 'brown'}});
+	var bar = Bodies.rectangle(175, 500, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
+	var bar2 = Bodies.rectangle(820, 500, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
+
+	worldObjects.push(spinbar);
+	worldObjects.push(spinbar2);
+	worldObjects.push(spinbar3);
+	worldObjects.push(bar);
+	worldObjects.push(bar2);
+
+	worldObjects.push(circleStack);
+	
+});
+
 /***********************************************************************
  *                      Onclick Buttons
  ***********************************************************************/
 function set_iron()
 {
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	Body.setDensity(ball, 0.09);
-	Body.setRestitution(ball, 0.4);
-	Body.setFillstyle(ball, '#7E7E7E');
-	current_state = current_state | 1;	// Set ball chosen flag
-	ball_choice_fn = set_iron;
+	ball_create_fn = function(pos)
+	{
+		ball = Bodies.circle(pos.x, pos.y, 10, {
+			name:"ball",
+			timeScale: 0,
+			density: 0.09,
+			restitution: 0.4,
+			render:{fillStyle: '#7E7E7E',
+				strokeStyle: '#7E7E7E'}
+		});
+		Body.updateInertia(ball);
+		World.add(engine.world, ball);
+	}
 }
 
 function set_steel()
 {
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	Body.setDensity(ball, 0.07);
-	Body.setRestitution(ball, 0.3);
-	Body.setFillstyle(ball, '#C1C1C1');
-	current_state = current_state | 1;
-	ball_choice_fn = set_steel;
+	ball_create_fn = function(pos)
+	{
+		ball = Bodies.circle(pos.x, pos.y, 10, {
+			name:"ball",
+			timeScale: 0,
+			density: 0.07,
+			restitution: 0.3,
+			render:{fillStyle: '#C1C1C1',
+				strokeStyle: '#C1C1C1'}
+		});
+		Body.updateInertia(ball);
+		World.add(engine.world, ball);
+	}
 }
 
 function set_rubber()
 {
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	Body.setDensity(ball, 0.05);
-	Body.setRestitution(ball, 0.8);
-	Body.setFillstyle(ball, '#EC2128');
-	current_state = current_state | 1;
-	ball_choice_fn = set_rubber;
-}
-
-
-function set_gp1()
-{
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	gp_force = 1.25;
-	current_state = current_state | 2;	// Set powder chosen flag
-	powder_choice_fn = set_gp1;
-}
-
-function set_gp2()
-{
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	gp_force = 1.75;
-	current_state = current_state | 2;
-	powder_choice_fn = set_gp2;
-}
-
-function set_gp3()
-{
-	if (current_state < STATE_NONE_CHOSEN || current_state >= STATE_BALL_LAUNCHED)
-		return;
-	gp_force = 2.15;
-	current_state = current_state | 2;
-	powder_choice_fn = set_gp3;
+	ball_create_fn = function(pos)
+	{
+		ball = Bodies.circle(pos.x, pos.y, 10, {
+			name:"ball",
+			timeScale: 0,
+			density: 0.05,
+			restitution: 0.8,
+			render:{fillStyle: '#EC2128',
+				strokeStyle: '#EC2128'}
+		});
+		Body.updateInertia(ball);
+		World.add(engine.world, ball);
+	}
 }
  
  /***********************************************************************
@@ -364,8 +596,8 @@ function set_gp3()
 
 	// Precalculate stuff that won't change
 	var bodyMass = body.area * body.density;
-	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale * body.timeScale;
-	var deltaTimeSquared = Math.pow(fps_runner.delta * engine.timing.timeScale * body.timeScale, 2);
+	var frictionAir = 1 - body.frictionAir * engine.timing.timeScale;
+	var deltaTimeSquared = Math.pow(fps_runner.delta * engine.timing.timeScale, 2);
 	var gravityX = bodyMass * engine.world.gravity.x * 0.001;
 	var gravityY = bodyMass * engine.world.gravity.y * 0.001;
 
@@ -385,38 +617,52 @@ function set_gp3()
 	return futurePositions;
 }
 
-function run_level(n, use_visualization)
+function reset_engine()
 {
-	use_visualization = typeof use_visualization == 'undefined' ? true : use_visualization;
-	if (n < 0 || n >= level_create_fns.length)
-	{	// This level is not defined
-		n = 0;
-	}
-	
 	// Stop existing simulation
 	if (typeof fps_runner != 'undefined')
 		Matter.Runner.stop(fps_runner);
 
 	// Clear previous bodies from world
 	World.clear(engine.world);
+
+	// Start up the engine
+	fps_runner = Engine.run(engine);
+	
+	// Freeze simulation
+	engine.timing.timeScale = 0;
+}
+
+
+function run_level(n, use_visualization)
+{
+	use_visualization = typeof use_visualization == 'undefined' ? true : use_visualization;
+	if (typeof level_create_fns[n] != 'function')
+	{	// This level is not defined
+		n = 0;
+	}
+	
+	ball_madness = false;
+	current_state = STATE_PRE_INIT;
+	reset_engine();
+	
+	ball = target = null;
 	
 	// Reset array visualization
 	if (use_visualization)
 		arrayVis_reset();
 	
-	current_state = STATE_PRE_INIT;
-	
-	engine.render.options.background = 'images/nebula' + n + '.jpg'
+	// Default to black background if no image found
+	var imagePath = 'images/nebula' + n + '.jpg';
+	checkImage(imagePath,
+		function() { engine.render.options.background = imagePath; },
+		function() { engine.render.options.background = '#000000'; });
 	
 	var worldObjects = [];
 	level_create_fns[n](worldObjects);
-	fps_runner = Engine.run(engine);
 
 	current_level = n;	// Set global level variable
 	current_state = STATE_AFTER_INIT;
-	
-	// Freeze simulation while adding objects
-	engine.timing.timeScale = 0;
 	
 	show_next_body.bodies = [];
 	show_next_body.next = 0;
@@ -445,12 +691,14 @@ function run_level(n, use_visualization)
 	}
 	
 	if (use_visualization)
+	{
+		current_state = STATE_RUNNING_VISUALIZATION;
 		show_next_body("finished");
+	}
 	else
 	{	// Pick the ball and powder for the user
-		current_state = STATE_NONE_CHOSEN;
+		current_state = STATE_MOUSEUP;
 		engine.timing.timeScale = 1;
-		ball_choice_fn(); powder_choice_fn();
 	}
 }
 
@@ -459,6 +707,12 @@ function show_next_body(reason)
 	if (reason != "finished")
 	{
 		console.warn("show_next_body: arrayVis did not complete successfully (" + reason + ")");
+		for (i in show_next_body.bodies)
+		{
+			show_next_body.bodies[i].render.visible = true;
+			engine.timing.timeScale = 1;
+			current_state = STATE_MOUSEUP;
+		}
 		return;
 	}
 	if (show_next_body.next > 0)
@@ -469,9 +723,8 @@ function show_next_body(reason)
 	
 	if (show_next_body.next == show_next_body.bodies.length)
 	{
-		current_state = STATE_NONE_CHOSEN;
+		current_state = STATE_MOUSEUP;
 		engine.timing.timeScale = 1;
-		ball_choice_fn(); powder_choice_fn();
 		return;
 	}
 	
@@ -499,8 +752,8 @@ function draw_textbox(text, xCenter, yCenter, options)
 	saveProperties(ctx, ctxBackup);	//saveProperties defined in visualize.js
 	
 	ctx.font = tb.font;
-	var h = pixiGetFontHeight(ctx.font) + 2 * tb.y_margin;	// pixiGetFontHeight defined in visualize.js
-	var w = ctx.measureText(text).width + 2 * tb.x_margin;
+	var h = tb.height || pixiGetFontHeight(ctx.font) + 2 * tb.y_margin;
+	var w = tb.width || ctx.measureText(text).width + 2 * tb.x_margin;
 	var x, y;
 	if (tb.centered == true)
 		x = xCenter - w/2, y = yCenter - h/2;
@@ -516,8 +769,92 @@ function draw_textbox(text, xCenter, yCenter, options)
 	ctx.fillText(text, x + tb.x_margin, y + tb.y_margin);
 	
 	restoreProperties(ctx, ctxBackup);
+	
+	return {x:x, y:y, w:w, h:h};
+}
+
+/***********************************************************************
+ *                      Helper functions
+ ***********************************************************************/
+// Only prints messages when debugging
+function debug(message)
+{
+	if (DEBUG)
+		console.log(message);
 }
 
 
-// Start off at level 0
-run_level(0);
+// Functions for converting between coordinate systems
+function canvasToWorldPt(pt)
+{
+	var min = engine.render.bounds.min;
+	var max = engine.render.bounds.max;
+	var xworld = min.x + (max.x - min.x) * pt.x / canvas.width;
+	var yworld = min.y + (max.y - min.y) * pt.y / canvas.height;
+	return {x:xworld, y:yworld};
+}
+
+function canvasToWorldCoords(x, y)
+{
+	return canvasToWorldPt({x:x, y:y});
+}
+
+function worldToCanvasPt(pt)
+{
+	var min = engine.render.bounds.min;
+	var max = engine.render.bounds.max;
+	var xcanvas = canvas.width * (pt.x - min.x) / (max.x - min.x);
+	var ycanvas = canvas.height * (pt.y - min.y) / (max.y - min.y);
+	return {x:xcanvas, y:ycanvas};
+}
+
+function worldToCanvasCoords(x, y)
+{
+	return worldToCanvasPt({x:x, y:y});
+}
+
+// Parameters are in canvas coordiantes
+function draw_arrow(x1, y1, x2, y2)
+{
+	ctx.fillStyle = ctx.strokeStyle = 'yellow';
+	ctx.beginPath(); ctx.moveTo(x1, y1);
+	ctx.lineTo(x2, y2); // Main line
+	var arrowtip = Vector.create(x2, y2);
+	var direction = Vector.mult(Vector.normalise(Vector.create(x2-x1, y2-y1)), 15);
+	var rightedge = Vector.add(arrowtip, Vector.rotate(direction, 0.8*Math.PI));
+	var leftedge = Vector.add(arrowtip, Vector.rotate(direction, -0.8*Math.PI));
+	ctx.lineTo(rightedge.x, rightedge.y);
+	ctx.lineTo(leftedge.x, leftedge.y);
+	ctx.lineTo(x2, y2);
+	ctx.stroke();
+	ctx.fill();
+}
+
+/***********************************************************************
+ *                      Game state helpers
+ ***********************************************************************/
+function is_ready_to_fire()
+{
+	return current_state == STATE_MOUSEUP;
+}
+ 
+function is_playing()
+{
+	return current_state > STATE_RUNNING_VISUALIZATION && current_state <= STATE_MOUSEDOWN;
+}
+
+function is_in_menu()
+{
+	return current_state >= STATE_START_MENU && current_state <= STATE_LEVEL_SELECT_MENU;
+}
+
+function is_pausible()
+{
+	return is_playing() && !is_in_menu();
+}
+
+reset_engine();
+current_state = STATE_START_MENU;
+
+// Start the first level
+//run_level(START_LEVEL);

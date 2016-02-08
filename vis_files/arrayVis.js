@@ -25,7 +25,7 @@ function arrayVis_ready()
 // Step the visualization to the next frame
 function arrayVis_update()
 {
-	var speed = DEBUG ? 160 : 10;
+	var speed = DEBUG ? 560 : 10;
 	var targetIndex = arrayVis_insert.nextIndex - 1;
 	var startIndex = targetIndex > 8 ? targetIndex - 8 : 0;
 	var ytarget = 75 + (targetIndex - startIndex) * 50;
@@ -103,6 +103,7 @@ function arrayVis_enableRender()
 {
 	arrayVis_enableRender.rendering = true;
 	bRenderVars = false;
+	renderCF = false;
 	arrayVis_drawArray(arrayVis_insert.objname, arrayVis_insert.nextIndex-1);
 }
 arrayVis_enableRender() // This is the default visualization

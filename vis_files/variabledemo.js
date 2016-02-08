@@ -28,4 +28,5 @@ function enable_variables()
 {
 	bRenderVars = true;
 	arrayVis_enableRender.rendering = false;
+	renderCF = false;
 }

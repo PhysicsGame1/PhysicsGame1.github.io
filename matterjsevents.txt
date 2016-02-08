@@ -1,9 +1,0 @@
-See matter.js line 3253 for details on each event:
-
-beforeTick -> tick -> beforeUpdate -> afterUpdate -> beforeRender -> afterRender -> afterTick
-mousemove
-mousedown
-mouseup
-collisionStart
-collisionActive
-collisionEnd

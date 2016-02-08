@@ -11,16 +11,53 @@ li{
 }
 #top_bar{
   width: 100%;
-  text-align: center;
   background-color: #009900;
   color: #efefef;
-  padding: 10px;
+  padding: 37px 0;
   margin: 0;
   border-bottom: 3px solid black;
+}
+#top_nav{
+  width: 20%;
+  margin: 0;
+  padding: 10px;
+  padding-left: 5%;
+  float: left;
+  margin-top: -20px;
+}
+.nav{
+  text-decoration: none;
+  color: #efefef;
+  font-size: 20px;
+  cursor: pointer;
+  margin: 0;
+  padding: 5px 15px;
+  
+}
+.nav:hover{
+  background: #006600
+}
+.dropdown{
+  display: none;
+  background: #060;
+  position: relative;
+  left: -90px;
+  top: 33px;
+}
+#page_title{
+  width: 50%;
+  float: left;
+  text-align: center;
+  font-size: 30px;
+  font-weight: bold;
+  margin-top: -20px;
 }
 #canvases{
   text-align: center;
   margin: 15px auto;
+}
+#game{
+  vertical-align: top;
 }
 #vis_selector{
   margin: 0;
@@ -30,22 +67,24 @@ li{
   background-color: #f0f0f0;
 }
 #vis_selector li{
-    padding: 6px 107px 6px 86px;
+    padding: 6px 47px 6px 50px;
 }
 .vis_tab{
   width: 100%;
   margin: 0;
+  cursor: pointer;
 }
-#cf_tab{
+#a_tab{
   border-right: 3px solid black;
   background-color: #aaa;
-  cursor: pointer;
 }
 #v_tab{
-  cursor: pointer;
+  border-right: 3px solid black;
+}
+#cf_tab{
 }
 #vis{
-  width: 500px;
+  
 }
 td{
   padding: 0;
@@ -84,4 +123,18 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+@media only screen and (max-width: 1600px){
+  #canvases{
+    margin: 15px 30px;
+  }
+}
+@media only screen and (max-width: 1550px){
+  #canvases{
+    margin: 15px auto;
+  }
+  #vis_selector li {
+    padding: 6px 40px 6px 41px;
+  }
 }

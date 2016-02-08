@@ -1,0 +1,63 @@
+Here is a copy of the non trivial function which detects the coordinates of mouse clicks in the menu. 
+Since we want the menu to resize to every secreen, the text and text boxes are percentages of the canvas, so thats why the values x, y, ht are just calculations of the canvas height and width. The width never changes for the buttons on the menu, so the if statement checks the x coordinates. Then, within this condition, the y coordinates are verified. The type of menu to be displayed is also verified. The coordinates are clickX, and clickY.
+
+
+function mouseClick(ctx, is_Start, clickX, clickY){
+
+	var x = (ctx.canvas.width - levelLength) / 2;
+    var y = ctx.canvas.height / 2;
+    var ht = ctx.canvas.height;
+    
+    console.log('width= ' + levelLength);
+	if(clickX >= x && clickX <= x + levelLength){
+
+		if(clickY <= (levelHeight + ctx.canvas.height*.02 + (y + ht*.08)) && clickY >= (y + ht*.08)){
+
+		  if(is_Start == 'Start')
+		  	return 'Start';
+		  else
+		  	return 'Restart';
+	    }
+
+	    else if(clickY <= (levelHeight + ctx.canvas.height*.02 + (y + ht*.16)) && clickY >= (y + ht*.16))
+	       return 'Quit';
+
+	    else if(clickY <= (levelHeight + ctx.canvas.height*.02 + (y + ht*.24)) && clickY >= (y + ht*.24))
+	       return 'Level Select';
+	     
+	    else if(clickY <= (levelHeight + ctx.canvas.height*.02 + (y + ht*.32)) && clickY >= (y + ht*.32)){
+	    	if(is_Start == 'Lost')
+	    		return 'Restart';
+	    	else
+	    		return 'Cancel';
+	    }
+	}
+}
+
+
+Test Suite: Since the x coordinates of the mouse dictate the execution of all other conditions, they only need to be tested with 3 different values. There are only 3 valid test values for x because the one that will text both parts of the and that will result to False and False is impossible, there is no case where clickX <= x and clickX >= x+levelLength. 
+
+Let e = levelHeight + ctx.canvas.height*.02 + (y+ht*.08)
+Let c = levelHeight + ctx.canvas.height*.02 + (y+ht*.16)
+let q = levelHeight + ctx.canvas.height*.02 + (y+ht*.24)
+let f = levelHeight + ctx.canvas.height*.02 + (y+ht*.32)
+let xval = (x+levelLength)-1
+
+    clickX             |  clickY
+T1: (x+levelLength)+1  |  not tested
+T2: clickX = (x-1)     |  not tested
+T3:     xval           |      e
+T4:     xval           |      c
+T5:     xval           |      q
+T6:     xval           |      f
+
+
+Results of the 6 tests: Every one is tested to either true or false by the end of all of the test. This suite should cover all of the coverage types for this function.
+   clickX >= x | clickX <= x+levelLength | clickY <= e  | clickY <= c | clickY <= q | clickY <= f |
+T1:     T      |         F               | not tested   | not tested  | not tested  | not tested  |
+T2:     F      |         T               | not tested   | not tested  | not tested  | not tested  |
+T3:     T      |         T               |      T       | not tested  | not tested  | not tested  |
+T4:     T      |         T               |      F       |      T      | not tested  | not tested  |
+T5:     T      |         T               |      F       |      F      | not tested  | not tested  |
+T6:     T      |         T               |      F       |      F      |     T       | not tested  |
+T7:     T      |         T               |      F       |      F      |     F       |     T       |

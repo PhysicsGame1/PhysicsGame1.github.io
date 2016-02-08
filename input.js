@@ -69,13 +69,35 @@ $(document).ready(function(){
 
   //visualization selection
   $(".vis_tab").click(function(){
-    if($(this).attr("id") == "cf_tab"){
-      $("#cf_tab").css({"background-color":"#aaa"});
-      $("#vis_selector").css({"background-color":"#f0f0f0"});  //make v_tab the original color
-    }else{  //id == v_tab
-      $("#cf_tab").css({"background-color":"#f0f0f0"});   //make cf_tab the original color
-      $("#vis_selector").css({"background-color":"#aaa"}); 
+    if($(this).attr("id") == "a_tab"){
+      $("#a_tab").css({"background-color":"#aaa"});     //make a_tab selected color
+      $("#v_tab").css({"background-color":"#f0f0f0"});  //make other tabs original color
+      $("#cf_tab").css({"background-color":"#f0f0f0"}); 
+    }else if($(this).attr("id") == "v_tab"){
+      $("#v_tab").css({"background-color":"#aaa"});     //make v_tab selected color
+      $("#a_tab").css({"background-color":"#f0f0f0"});  //make other tabs original color
+      $("#cf_tab").css({"background-color":"#f0f0f0"});  
+    }else if($(this).attr("id") == "cf_tab"){
+      $("#cf_tab").css({"background-color":"#aaa"});    //make cf_tab selected color
+      $("#a_tab").css({"background-color":"#f0f0f0"});  //make other tabs original color
+      $("#v_tab").css({"background-color":"#f0f0f0"});  
     }
   });
 
+  $(window).resize(resizeCanvases);
+  function resizeCanvases(){
+    if(window.innerWidth <= 1550){
+      document.getElementById('physicsCanvas').width = 900;
+      document.getElementById('physicsCanvas').height = 550;
+      document.getElementById('v_canvas').width = 450;
+      document.getElementById('v_canvas').height = 515;
+
+    }else{  //width >= 1500
+      document.getElementById('physicsCanvas').width = 1024;
+      document.getElementById('physicsCanvas').height = 600;
+      document.getElementById('v_canvas').width = 500;
+      document.getElementById('v_canvas').height = 560;
+    }
+  }
+  resizeCanvases(); //call when page loads
 });
