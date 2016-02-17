@@ -14,25 +14,30 @@
 
 // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
 
-function visualization()
+function variable_visualization()
 {
-    this.variables = {};
-    this.fontHeightCache = {};
+  this.variables = {};
+  this.fontHeightCache = {};
 
-    this.font = 'Times New Roman';
-    this.fontSize = 24;
+  this.font = 'Times New Roman';
+  this.fontSize = 24;
 	
 	this.prevRenderTime = 0;
 }
 
 // vis.setCanvas( document.getElementById('visualizeCanvas') );
-visualization.prototype.setCanvas = function (canvas)
+variable_visualization.prototype.setCanvas = function (canvas)
 {
     this.outputCanvas = canvas;
     this.outputContext = canvas.getContext('2d');
 };
 
-visualization.prototype.setVariable = function (key, value)
+variable_visualization.prototype.reset = function()
+{
+	this.variables = {};
+};
+
+variable_visualization.prototype.setVariable = function (key, value)
 {
     if (key in this.variables)
     {
@@ -43,7 +48,7 @@ visualization.prototype.setVariable = function (key, value)
 		this.createVariable(key, value);
 };
 
-visualization.prototype.createVariable = function (key, value)
+variable_visualization.prototype.createVariable = function (key, value)
 {
 	if (!(key in this.variables))
 	{
@@ -61,25 +66,25 @@ visualization.prototype.createVariable = function (key, value)
 	}
 }
 
-visualization.prototype.setOption = function (key, option, value)
+variable_visualization.prototype.setOption = function (key, option, value)
 {
 	this.createVariable(key)
 	this.variables[key].options[option] = value;
 };
 
-visualization.prototype.unhighlightAll = function ()
+variable_visualization.prototype.unhighlightAll = function ()
 {
     for (key in this.variables)
         this.variables[key].options.highlight = false;
 };
 
-visualization.prototype.setRoundingRule = function(key, decimals)
+variable_visualization.prototype.setRoundingRule = function(key, decimals)
 {
 	this.createVariable(key)
 	this.variables[key].options.roundingRule = Math.pow(10, decimals);
 }
 
-visualization.prototype.addHiddenKeys = function(key, hideKeys)
+variable_visualization.prototype.addHiddenKeys = function(key, hideKeys)
 {
 	this.createVariable(key)
 	if (this.variables[key].hideKeys == null)
@@ -88,7 +93,7 @@ visualization.prototype.addHiddenKeys = function(key, hideKeys)
 		this.variables[key].hideKeys['.' + hideKeys[k]] = true;
 }
 
-visualization.prototype.removeHiddenKeys = function(key, hideKeys)
+variable_visualization.prototype.removeHiddenKeys = function(key, hideKeys)
 {
 	this.createVariable(key)
 	if (this.variables[key].hideKeys == null)
@@ -97,13 +102,13 @@ visualization.prototype.removeHiddenKeys = function(key, hideKeys)
 		this.variables[key].hideKeys['.' + hideKeys[k]] = false;
 }
 
-visualization.prototype.clearHiddenKeys = function(key)
+variable_visualization.prototype.clearHiddenKeys = function(key)
 {
 	this.createVariable(key)
 	this.variables[key].hideKeys = null;
 }
 
-visualization.prototype.addShownKeys = function(key, showKeys)
+variable_visualization.prototype.addShownKeys = function(key, showKeys)
 {
 	this.createVariable(key)
 	if (this.variables[key].showKeys == null)
@@ -112,7 +117,7 @@ visualization.prototype.addShownKeys = function(key, showKeys)
 		this.variables[key].showKeys['.' + showKeys[k]] = true;
 }
 
-visualization.prototype.removeShownKeys = function(key, showKeys)
+variable_visualization.prototype.removeShownKeys = function(key, showKeys)
 {
 	this.createVariable(key)
 	if (this.variables[key].showKeys == null)
@@ -121,14 +126,14 @@ visualization.prototype.removeShownKeys = function(key, showKeys)
 		this.variables[key].showKeys['.' + showKeys[k]] = false;
 }
 
-visualization.prototype.clearShownKeys = function(key)
+variable_visualization.prototype.clearShownKeys = function(key)
 {
 	this.createVariable(key)
 	this.variables[key].showKeys = {};
 }
 
 //ctx.measureText(this._formatValue(key)).width
-visualization.prototype.render = function(x, y, w, h)
+variable_visualization.prototype.render = function(x, y, w, h)
 {
 	var fontHeight = pixiGetFontHeight(this.fontSize + "px " + this.font);
 	var ctx = this.outputContext;
@@ -175,7 +180,7 @@ visualization.prototype.render = function(x, y, w, h)
 	this.prevRenderTime = (new Date()).getTime();
 }
 
-visualization.prototype._printObj = function(v, objName, obj, x, y, prevKey, bc)
+variable_visualization.prototype._printObj = function(v, objName, obj, x, y, prevKey, bc)
 {
 	var fontHeight = pixiGetFontHeight(this.fontSize + "px " + this.font);
 	var ctx = this.outputContext;
@@ -222,7 +227,7 @@ visualization.prototype._printObj = function(v, objName, obj, x, y, prevKey, bc)
 }
 
 // Prints a box char string as monospaced even if the current font is not
-visualization.prototype._printBoxCharString = function(x, y, boxchar)
+variable_visualization.prototype._printBoxCharString = function(x, y, boxchar)
 {
 	var ctx = this.outputContext;
 	var bcwidth = ctx.measureText('┼').width;
@@ -234,7 +239,7 @@ visualization.prototype._printBoxCharString = function(x, y, boxchar)
 	return x;
 }
 
-visualization.prototype._round = function(v, rr)
+variable_visualization.prototype._round = function(v, rr)
 {
 	//var v = this.variables[key].value
 	if (v == Number(v) && v % 1 != 0) // v is float
@@ -243,7 +248,7 @@ visualization.prototype._round = function(v, rr)
 		return v;
 }
 
-visualization.prototype._shouldDrawKey = function(v, key)
+variable_visualization.prototype._shouldDrawKey = function(v, key)
 {
 	if (v.hideKeys != null && v.hideKeys[key] == true)
 		return false;

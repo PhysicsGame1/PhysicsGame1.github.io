@@ -2,7 +2,7 @@
  *                      Global definitions
  ***********************************************************************/
 var DEBUG = true;		// Set to true to enable various features for testing
-var START_LEVEL = 7;	// This level will be run when the game starts
+var START_LEVEL = 4;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
@@ -39,9 +39,7 @@ var engine = Engine.create({
 		}
 }});
 
-var STATE_PRE_INIT = 0;
-var STATE_AFTER_INIT = 100;
-var STATE_RUNNING_VISUALIZATION = 101;
+var STATE_INITIALIZING = 0;
 
 var STATE_MOUSEUP = 200;
 var STATE_MOUSEDOWN = 300;
@@ -93,13 +91,13 @@ var frame = 0;
  *                      Buttons
  ***********************************************************************/
 var buttons = {};
-buttons['Pause'] = new matterjs_button(engine, "Pause", 5, 5, function ()
+buttons['Pause'] = new canvas_button(canvas, "Pause", 5, 5, function ()
 {
 	paused_state = current_state;
 	current_state = STATE_PAUSE_MENU;
 });
 
-buttons['Debug'] = new matterjs_button(engine, "Debug", 5, 40, function ()
+buttons['Debug'] = new canvas_button(canvas, "Debug", 5, 40, function ()
 {
 	DEBUG = !DEBUG;
 	console.log('DEBUG = ' + DEBUG);
@@ -107,33 +105,87 @@ buttons['Debug'] = new matterjs_button(engine, "Debug", 5, 40, function ()
 
 
 var ball_madness = false;
-buttons['Balls'] = new matterjs_button(engine, "Balls", 5, 75, function ()
+buttons['Balls'] = new canvas_button(canvas, "Balls", 5, 75, function ()
 {
 	ball_madness = !ball_madness;
 });
 
-buttons['Start'] = new matterjs_button(engine, "Start", canvas.width / 2, canvas.height / 2 + 50, function ()
+buttons['Start'] = new canvas_button(canvas, "Start", canvas.width / 2, canvas.height / 2 + 50, function ()
 {
-	run_level(START_LEVEL, true);
+	run_level(START_LEVEL);
 }, {centered:true, font:'bold 28px monospace'});
 
-buttons['Restart'] = new matterjs_button(engine, 'Restart', canvas.width / 2, canvas.height / 2 - 50, function ()
+buttons['Restart'] = new canvas_button(canvas, 'Restart', canvas.width / 2, canvas.height / 2 - 50, function ()
 {
-	run_level(current_level, false);
+	run_level(current_level);
 }, {centered:true, font:'bold 24px monospace'});
 
-buttons['Quit'] = new matterjs_button(engine, 'Quit', canvas.width / 2, canvas.height / 2, function ()
+buttons['Level Select'] = new canvas_button(canvas, 'Level Select', canvas.width / 2, canvas.height / 2, function ()
+{
+	current_state = STATE_LEVEL_SELECT_MENU;
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Quit'] = new canvas_button(canvas, 'Quit', canvas.width / 2, canvas.height / 2 + 50, function ()
 {
 	reset_engine();
 	current_state = STATE_START_MENU;
 }, {centered:true, font:'bold 24px monospace'});
 
-buttons['Cancel'] = new matterjs_button(engine, 'Cancel', canvas.width / 2, canvas.height / 2 + 50, function ()
+buttons['Cancel'] = new canvas_button(canvas, 'Cancel', canvas.width / 2, canvas.height / 2 + 100, function ()
 {
 	current_state = paused_state;
 }, {centered:true, font:'bold 24px monospace'});
 
+buttons['Main Menu'] = new canvas_button(canvas, "Main Menu", 5, 5, function ()
+{
+	current_state = STATE_PAUSE_MENU;
+});
 
+/*
+	Level select buttons
+*/
+buttons['Level 0'] = new canvas_button(canvas, 'Level 0', canvas.width / 3, canvas.height / 2 - 50, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 1'] = new canvas_button(canvas, 'Level 1', canvas.width /3, canvas.height / 2, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 2'] = new canvas_button(canvas, 'Level 2', canvas.width / 3, canvas.height / 2 + 50, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 3'] = new canvas_button(canvas, 'Level 3', canvas.width /3, canvas.height / 2 + 100, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 4'] = new canvas_button(canvas, 'Level 4', canvas.width * 2/3, canvas.height / 2 - 50, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 5'] = new canvas_button(canvas, 'Level 5', canvas.width * 2/3, canvas.height / 2, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 6'] = new canvas_button(canvas, 'Level 6', canvas.width * 2/3, canvas.height / 2 + 50, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+buttons['Level 7'] = new canvas_button(canvas, 'Level 7', canvas.width * 2/3, canvas.height / 2 + 100, function ()
+{
+	
+}, {centered:true, font:'bold 24px monospace'});
+
+//
+//buttons['Set Iron'] = new canvas_button(canvas, 'Set Iron', canvas.width / 2, 30, set_iron, {centered:true, image:'images/iron_ball.png'});
 
 /***********************************************************************
  *                      Matter.js events
@@ -149,6 +201,7 @@ Events.on(engine, 'collisionEnd', afterCollision);
 Events.on(engine, 'afterRender', afterRender);
 document.addEventListener('keyup', keyup);
 document.addEventListener('keydown', keydown);
+canvas.addEventListener("mousewheel", mousewheel, false);
 
 var gp_amount;
 var ball_type;
@@ -210,16 +263,45 @@ function afterUpdate(event)
 	}
 	
 	buttons['Pause'].options.enabled = is_pausible();
+	buttons['Main Menu'].options.visible = current_state != STATE_LEVEL_SELECT_MENU;
 	buttons['Balls'].options.visible = is_ready_to_fire() && DEBUG;
 	buttons['Start'].options.visible = current_state == STATE_START_MENU;
 	buttons['Restart'].options.visible = current_state == STATE_PAUSE_MENU;
+	buttons['Level Select'].options.visible = current_state == STATE_PAUSE_MENU;
 	buttons['Quit'].options.visible = current_state == STATE_PAUSE_MENU;
 	buttons['Cancel'].options.visible = current_state == STATE_PAUSE_MENU;
+	buttons['Main Menu'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
 	
-	
-	render_variables();
-	if (ball_type != null && gp_amount != null)
-		draw_flow_chart(ball_type, gp_amount);
+	buttons['Level 0'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 1'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 2'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 3'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 4'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 5'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 6'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+	buttons['Level 7'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
+
+	if (is_in_menu())
+	{
+		var x = canvas.width / 2; var y = canvas.height / 2;
+		buttons['Start'].move(x, y + 50);
+		buttons['Restart'].move(x, y - 50);
+		buttons['Level Select'].move(x, y)
+		buttons['Quit'].move(x, y + 50);
+		buttons['Cancel'].move(x, y + 100);
+	}
+
+	if(in_level_select()){
+		var x = canvas.width / 3; var y = canvas.height / 2;
+		buttons['Level 0'].move(x, y - 50);
+		buttons['Level 1'].move(x, y);
+		buttons['Level 2'].move(x, y + 50);
+		buttons['Level 3'].move(x, y + 100);
+		buttons['Level 4'].move(x*2, y - 50);
+		buttons['Level 5'].move(x*2, y);
+		buttons['Level 6'].move(x*2, y + 50);
+		buttons['Level 7'].move(x*2, y + 100);
+	}
 }
 
 // Check to see if the ball collided with the target
@@ -237,6 +319,7 @@ function afterCollision(event)
 			// Run next level in 5 seconds...
 			current_state = STATE_TARGET_HIT;
 			setTimeout(function() { run_level(current_level + 1); }, DEBUG ? 500 : 5000);
+			break;
 		}
 	}
 }
@@ -245,7 +328,8 @@ function afterRender(event)
 {
 	// Draw spawn_zone
 	var can_pos = worldToCanvasPt(spawn_zone);
-	var x = can_pos.x; var y = can_pos.y; var r = spawn_zone.r / camera.zoom;
+	var x = can_pos.x; var y = can_pos.y;
+	var r = worldToCanvasCoords(spawn_zone.x + spawn_zone.r, 0).x - can_pos.x; // Hack to get correct radius in canvas coordinates
 	// Transparent background...
 	ctx.beginPath();
 	ctx.fillStyle = 'rgba(66, 99, 200, 0.45)';
@@ -301,8 +385,8 @@ function afterRender(event)
 	{
 		draw_textbox("Level Complete! The next level will begin soon.", canvas.width/2, canvas.height/2, {
 			font:'24px Arial',
-			background:'#009900',
-			outline:'yellow',
+			backColor:'#009900',
+			outlineColor:'yellow',
 			x_margin:30,
 			y_margin:20
 		});
@@ -310,11 +394,20 @@ function afterRender(event)
 	
 	if (DEBUG && is_playing())
 	{
-		// Draw FPS
-		draw_textbox('FPS:' + round(fps_runner.fps, 1), canvas.width - 100, 5, { centered: false });
-		// Draw Coordinates
-		var wpt = canvasToWorldPt(mouseConstraint.mouse.absolute);
-		draw_textbox(mouseConstraint.mouse.button, mousePos.x, mousePos.y + 30, { centered: false });
+		var cpt = mouseConstraint.mouse.absolute;
+		var wpt = canvasToWorldPt(cpt);
+		draw_textbox('   FPS:' + round(fps_runner.fps, 2) +
+				'\n World:' + round(wpt.x,2) + ',' + round(wpt.y,2) +
+				'\nCanvas:' + round(cpt.x,2) + ',' + round(cpt.y,2) +
+				'\n Level:' + current_level
+				, canvas.width - 210, 10  // x, y
+				, { font:'16px monospace', 
+						centered: false,
+						backColor: 'rgba(126,126,126,0.6)',
+						outlineColor: 'rgba(126,126,126,0.5)',
+						textFrontColor: 'white',
+						width: 200
+						});
 	}
 	
 	if (is_in_menu())
@@ -333,11 +426,13 @@ function afterRender(event)
 	
 	for (k in buttons)
 		buttons[k].draw();
+	
+	// Run visualization callback
+	v_updateframe()
 }
 
 function mousedown(event)
 {
-	console.log("mousedown");
 	var mx = event.mouse.position.x;
 	var my = event.mouse.position.y;
 	
@@ -379,22 +474,36 @@ function mouseup(event)
 	var force = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
 	ball.timeScale = 1;
 	Body.applyForce(ball, ball.position, force);
+	Body.enableCollisions(ball);
 	current_state = STATE_MOUSEUP;
 }
 
 function keydown(event)
 {
-	console.log(event);
+	if (event.code == 'ArrowLeft')
+		camera.translateCamera(-10, 0);
+	else if (event.code == 'ArrowRight')
+		camera.translateCamera(10, 0);
+	else if (event.code == 'ArrowUp')
+		camera.translateCamera(0, -10);
+	else if (event.code == 'ArrowDown')
+		camera.translateCamera(0, 10);
 }
 
 function keyup(event)
 {
-	if (event.key == 's')
+	if (event.code == 'KeyS')
 	{
 		if (current_state == STATE_RUNNING_VISUALIZATION)
 			arrayVis_stop();
 	}
-	
+	else
+		console.log(event.code + ' pressed.');
+}
+
+function mousewheel(event)
+{
+	camera.moveZoom(event.wheelDelta / -2);
 }
 
 
@@ -405,8 +514,8 @@ function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon, xmin, x
 {
 	if (typeof xmin === 'undefined') xmin = 0;
 	if (typeof ymin === 'undefined') ymin = 0;
-	if (typeof xmax === 'undefined') xmax = canvas.width;
-	if (typeof ymax === 'undefined') ymax = canvas.height;
+	if (typeof xmax === 'undefined') xmax = 1024;
+	if (typeof ymax === 'undefined') ymax = 600;
 	
 	camera.fitToBounds(xmin, xmax, ymin, ymax);
 	
@@ -538,20 +647,34 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 /***********************************************************************
  *                      Onclick Buttons
  ***********************************************************************/
+function ball_create_common(pos, restitution, density, texture)
+{
+		ball = Bodies.circle(pos.x, pos.y, 10, {
+			name:"ball",
+			timeScale: 0,
+			density: density,
+			restitution: restitution,
+			render:{
+				sprite:{texture: texture,
+					xScale:0.5,
+					yScale:0.5
+			}}});
+			
+	// Fix texture position (matter.js changes these in Body.create so it must be set after creation)
+	ball.render.sprite.xOffset = 0.5;
+	ball.render.sprite.yOffset = 0.5;
+	
+	Body.updateInertia(ball);
+	Body.disableCollisions(ball);
+	World.add(engine.world, ball);
+	avis.insert({drawfn:draw_body, body:ball});
+}
+ 
 function set_iron()
 {
 	ball_create_fn = function(pos)
 	{
-		ball = Bodies.circle(pos.x, pos.y, 10, {
-			name:"ball",
-			timeScale: 0,
-			density: 0.09,
-			restitution: 0.4,
-			render:{fillStyle: '#7E7E7E',
-				strokeStyle: '#7E7E7E'}
-		});
-		Body.updateInertia(ball);
-		World.add(engine.world, ball);
+		ball_create_common(pos, 0.4, 0.09, 'images/iron_ball.png');
 	}
 }
 
@@ -559,16 +682,7 @@ function set_steel()
 {
 	ball_create_fn = function(pos)
 	{
-		ball = Bodies.circle(pos.x, pos.y, 10, {
-			name:"ball",
-			timeScale: 0,
-			density: 0.07,
-			restitution: 0.3,
-			render:{fillStyle: '#C1C1C1',
-				strokeStyle: '#C1C1C1'}
-		});
-		Body.updateInertia(ball);
-		World.add(engine.world, ball);
+		ball_create_common(pos, 0.3, 0.07, 'images/steel_ball.png');
 	}
 }
 
@@ -576,16 +690,7 @@ function set_rubber()
 {
 	ball_create_fn = function(pos)
 	{
-		ball = Bodies.circle(pos.x, pos.y, 10, {
-			name:"ball",
-			timeScale: 0,
-			density: 0.05,
-			restitution: 0.8,
-			render:{fillStyle: '#EC2128',
-				strokeStyle: '#EC2128'}
-		});
-		Body.updateInertia(ball);
-		World.add(engine.world, ball);
+		ball_create_common(pos, 0.9, 0.05, 'images/rubber_ball.png');
 	}
 }
  
@@ -635,110 +740,52 @@ function reset_engine()
 	
 	// Freeze simulation
 	engine.timing.timeScale = 0;
+	
 }
 
 
-function run_level(n, use_visualization)
+function run_level(n)
 {
-	use_visualization = typeof use_visualization == 'undefined' ? true : use_visualization;
 	if (typeof level_create_fns[n] != 'function')
 	{	// This level is not defined
 		n = 0;
 	}
 	
 	ball_madness = false;
-	current_state = STATE_PRE_INIT;
+	current_state = STATE_INITIALIZING;
 	reset_engine();
 	
 	ball = target = null;
 	
-	// Reset array visualization
-	if (use_visualization)
-		arrayVis_reset();
+	// Reset visualizations
+	avis.reset();
+	vvis.reset();
+	
+	// Run visualization initialization
+	v_init();
 	
 	// Default to black background if no image found
+	engine.render.options.background = '#000000';
+	
 	var imagePath = 'images/nebula' + n + '.jpg';
 	checkImage(imagePath,
 		function() { engine.render.options.background = imagePath; },
-		function() { engine.render.options.background = '#000000'; });
+		function() { });
 	
 	var worldObjects = [];
 	level_create_fns[n](worldObjects);
 
 	current_level = n;	// Set global level variable
-	current_state = STATE_AFTER_INIT;
-	
-	show_next_body.bodies = [];
-	show_next_body.next = 0;
-	for (var k in worldObjects)
-	{
-		var obj = worldObjects[k];
-		if (obj.type == "composite")
-		{
-			// Get a list of all bodies in this composite
-			var allComposite = Composite.allBodies(obj);
-			// Make them all invisible
-			for(var i = 0; i < allComposite.length; i++)
-			{
-				show_next_body.bodies.push(allComposite[i])
-				allComposite[i].render.visible = (!use_visualization);
-				
-				level_bodies.push(allComposite[i]); //add composite body to levels_bodies array
-			}
-		}
-		else
-		{
-			show_next_body.bodies.push(obj);
-			obj.render.visible = (!use_visualization);
-			level_bodies.push(obj); //add body to levels_bodies array
-		}
-		
-		// Add it to the world
-		World.add(engine.world, obj);
-	}
-	
-	if (use_visualization)
-	{
-		current_state = STATE_RUNNING_VISUALIZATION;
-		show_next_body("finished");
-	}
-	else
-	{	// Pick the ball and powder for the user
-		current_state = STATE_MOUSEUP;
-		engine.timing.timeScale = 1;
-	}
-}
 
-function show_next_body(reason)
-{
-	if (reason != "finished")
-	{
-		console.warn("show_next_body: arrayVis did not complete successfully (" + reason + ")");
-		for (i in show_next_body.bodies)
-		{
-			show_next_body.bodies[i].render.visible = true;
-			engine.timing.timeScale = 1;
-			current_state = STATE_MOUSEUP;
-		}
-		return;
+	World.add(engine.world, worldObjects);
+	level_bodies = Matter.Composite.allBodies(engine.world);	// Flat array of bodies in current level
+	for (var k in level_bodies)
+	{ // Add current bodies to array visualization
+		avis.insert({fillStyle: 'pink', drawfn:draw_body, body:level_bodies[k]});
 	}
-	if (show_next_body.next > 0)
-	{
-		var prev_obj = show_next_body.bodies[show_next_body.next - 1];
-		prev_obj.render.visible = true;
-	}
-	
-	if (show_next_body.next == show_next_body.bodies.length)
-	{
-		current_state = STATE_MOUSEUP;
-		engine.timing.timeScale = 1;
-		return;
-	}
-	
-	var next_obj = show_next_body.bodies[show_next_body.next];
-	arrayVis_insert(next_obj.name, show_next_body);
-	
-	show_next_body.next += 1;
+
+	current_state = STATE_MOUSEUP;
+	engine.timing.timeScale = 1;
 }
 
 // Draws a text box centered at (xCenter, yCenter)
@@ -747,9 +794,10 @@ function draw_textbox(text, xCenter, yCenter, options)
 	var defaults = {
 		x_margin: 5,
 		y_margin: 5,
-		background: 'white',
-		outline: 'black',
-		fillStyle: 'black',
+		backColor: 'white',
+		outlineColor: 'black',
+		textFrontColor: 'black',
+		textBackColor: 'black',
 		font: '16px Arial',
 		centered: true
 	}
@@ -758,26 +806,49 @@ function draw_textbox(text, xCenter, yCenter, options)
 	var ctxBackup;
 	saveProperties(ctx, ctxBackup);	//saveProperties defined in visualize.js
 	
+	// Split input into lines
+	var lines = text.split('\n');
+	
+	// Calculate width / height
 	ctx.font = tb.font;
-	var h = tb.height || pixiGetFontHeight(ctx.font) + 2 * tb.y_margin;
-	var w = tb.width || ctx.measureText(text).width + 2 * tb.x_margin;
+	var lineh = pixiGetFontHeight(ctx.font) + tb.y_margin;
+	var h = tb.height || (lineh * lines.length + tb.y_margin);
+	var w = 0;
+	if (tb.width)
+		w = tb.width;
+	else
+	{
+		for (i in lines)
+		{
+			var tw = ctx.measureText(lines[i]).width;
+			if (tw > w)
+				w = tw;
+		}
+		w += 2 * tb.x_margin;
+	}
 	var x, y;
 	if (tb.centered == true)
 		x = xCenter - w/2, y = yCenter - h/2;
 	else
 		x = xCenter, y = yCenter;
 	
-	ctx.fillStyle = tb.background; ctx.strokeStyle = tb.outline;
+	ctx.fillStyle = tb.backColor; ctx.strokeStyle = tb.outlineColor;
 	ctx.fillRect(x, y, w, h);
 	ctx.strokeRect(x, y, w, h);
 	
 	ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-	ctx.fillStyle = tb.fillStyle; 
-	ctx.fillText(text, x + tb.x_margin, y + tb.y_margin);
+	x += tb.x_margin;
+	y += tb.y_margin;
+	for (i in lines)
+	{
+		ctx.fillStyle = tb.textBackColor;
+		ctx.fillText(lines[i], x, y);
+		ctx.fillStyle = tb.textFrontColor;
+		ctx.fillText(lines[i], x + 1, y + 1);
+		y += lineh;
+	}
 	
 	restoreProperties(ctx, ctxBackup);
-	
-	return {x:x, y:y, w:w, h:h};
 }
 
 /***********************************************************************
@@ -790,12 +861,11 @@ function debug(message)
 		console.log(message);
 }
 
-
 // Functions for converting between coordinate systems
 function canvasToWorldPt(pt)
 {
 	var min = engine.render.bounds.min;
-	var max = engine.render.bounds.max;
+	var max = engine.render.bounds.max;	
 	var xworld = min.x + (max.x - min.x) * pt.x / canvas.width;
 	var yworld = min.y + (max.y - min.y) * pt.y / canvas.height;
 	return {x:xworld, y:yworld};
@@ -847,7 +917,7 @@ function is_ready_to_fire()
  
 function is_playing()
 {
-	return current_state > STATE_RUNNING_VISUALIZATION && current_state <= STATE_MOUSEDOWN;
+	return current_state > STATE_INITIALIZING && current_state <= STATE_MOUSEDOWN;
 }
 
 function is_in_menu()
@@ -858,6 +928,10 @@ function is_in_menu()
 function is_pausible()
 {
 	return is_playing() && !is_in_menu();
+}
+
+function in_level_select(){
+	return current_state >= STATE_LEVEL_SELECT_MENU;
 }
 
 reset_engine();
