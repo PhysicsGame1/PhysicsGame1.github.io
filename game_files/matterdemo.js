@@ -2,7 +2,7 @@
  *                      Global definitions
  ***********************************************************************/
 var DEBUG = true;		// Set to true to enable various features for testing
-var START_LEVEL = 4;	// This level will be run when the game starts
+var START_LEVEL = 8;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
@@ -18,8 +18,9 @@ var Engine = Matter.Engine,								//manages updating and rendering canvas
 		Composite = Matter.Composite,					//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
 		Composites = Matter.Composites,					//used to build composites (combining lots of shapes into structures like walls etc)
 		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
-		Vector = Matter.Vector;							//for vector algebra
-
+		Vector = Matter.Vector,							//for vector algebra
+		Constraint = Matter.Constraint,					//for chaining object's together with composites,
+		Bounds = Matter.Bounds;
 	
 
 // Set up renderer and engine options (see link for more options)
@@ -43,9 +44,9 @@ var STATE_INITIALIZING = 0;
 
 var STATE_MOUSEUP = 200;
 var STATE_MOUSEDOWN = 300;
+var STATE_POWERUP = 350;
 
 var STATE_TARGET_HIT = 400;
-
 
 var STATE_START_MENU = 600;
 var STATE_PAUSE_MENU = 601;
@@ -55,6 +56,8 @@ var STATE_LEVEL_SELECT_MENU = 610;
 // Tracks the current state of the game
 var current_state;
 var paused_state;
+
+var powerup_enabled = false;
 
 // Contains functions that help create each level, indexed by level
 var level_create_fns = [];
@@ -91,6 +94,7 @@ var frame = 0;
  *                      Buttons
  ***********************************************************************/
 var buttons = {};
+
 buttons['Pause'] = new canvas_button(canvas, "Pause", 5, 5, function ()
 {
 	paused_state = current_state;
@@ -102,7 +106,6 @@ buttons['Debug'] = new canvas_button(canvas, "Debug", 5, 40, function ()
 	DEBUG = !DEBUG;
 	console.log('DEBUG = ' + DEBUG);
 });
-
 
 var ball_madness = false;
 buttons['Balls'] = new canvas_button(canvas, "Balls", 5, 75, function ()
@@ -146,43 +149,52 @@ buttons['Main Menu'] = new canvas_button(canvas, "Main Menu", 5, 5, function ()
 */
 buttons['Level 0'] = new canvas_button(canvas, 'Level 0', canvas.width / 3, canvas.height / 2 - 50, function ()
 {
-	
+	run_level(0);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 1'] = new canvas_button(canvas, 'Level 1', canvas.width /3, canvas.height / 2, function ()
 {
-	
+	run_level(1);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 2'] = new canvas_button(canvas, 'Level 2', canvas.width / 3, canvas.height / 2 + 50, function ()
 {
-	
+	run_level(2);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 3'] = new canvas_button(canvas, 'Level 3', canvas.width /3, canvas.height / 2 + 100, function ()
 {
-	
+	run_level(3);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 4'] = new canvas_button(canvas, 'Level 4', canvas.width * 2/3, canvas.height / 2 - 50, function ()
 {
-	
+	run_level(4);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 5'] = new canvas_button(canvas, 'Level 5', canvas.width * 2/3, canvas.height / 2, function ()
 {
-	
+	run_level(5);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 6'] = new canvas_button(canvas, 'Level 6', canvas.width * 2/3, canvas.height / 2 + 50, function ()
 {
-	
+	run_level(6);
 }, {centered:true, font:'bold 24px monospace'});
 
 buttons['Level 7'] = new canvas_button(canvas, 'Level 7', canvas.width * 2/3, canvas.height / 2 + 100, function ()
 {
-	
+	run_level(7);
 }, {centered:true, font:'bold 24px monospace'});
+
+//disable all level buttons except level 0 at start
+buttons['Level 1'].options.enabled = false;
+buttons['Level 2'].options.enabled = false;
+buttons['Level 3'].options.enabled = false;
+buttons['Level 4'].options.enabled = false;
+buttons['Level 5'].options.enabled = false;
+buttons['Level 6'].options.enabled = false;
+buttons['Level 7'].options.enabled = false;
 
 //
 //buttons['Set Iron'] = new canvas_button(canvas, 'Set Iron', canvas.width / 2, 30, set_iron, {centered:true, image:'images/iron_ball.png'});
@@ -197,19 +209,66 @@ Events.on(mouseConstraint, 'mousemove', mousemove);
 Events.on(mouseConstraint, 'mouseup', mouseup);
 Events.on(engine, 'beforeUpdate', beforeUpdate);
 Events.on(engine, 'afterUpdate', afterUpdate);
+Events.on(engine, 'collisionStart', beforeCollision);
 Events.on(engine, 'collisionEnd', afterCollision);
 Events.on(engine, 'afterRender', afterRender);
 document.addEventListener('keyup', keyup);
 document.addEventListener('keydown', keydown);
 canvas.addEventListener("mousewheel", mousewheel, false);
+$(window).resize(windowresize);
 
-var gp_amount;
-var ball_type;
 
 function beforeUpdate(event)
-{
+{	
+	if(ball && powerup_enabled)
+		checkPowerupHit(); //must be called after game is set up
+		
 	if(current_level == 7)
 		checkChrisLevelOne();
+}
+
+function beforeCollision(event)
+{
+
+		
+}
+
+//if this function is called it should always be the case that we can find a powerup
+//just in case make sure though. . .
+function checkPowerupHit()
+{
+	var powerup;
+	for(var i = 0; i < level_bodies.length; ++i)
+	{
+		if(level_bodies[i].name == "powerup_force")
+			powerup = level_bodies[i];
+	}
+	if(powerup)
+	{
+		if(Matter.Bounds.overlaps(powerup.bounds, ball.bounds)) //checks to see if powerup is within ball bounds
+		{
+			//alert("FOUND POWERUP");
+			var angle = powerup.angle;
+			var netF = 0.5;
+			//console.log("Y DIR = ",netF*Math.sin(angle))
+			//console.log("X DIR = ",netF*Math.cos(angle));
+			var force = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
+			Body.applyForce(ball, ball.position, force);
+		}				
+		else if (powerup.name == "powerup_enlarge")
+		{
+		}
+	//remove powerup once triggered
+	var index = level_bodies.indexOf(powerup);
+	if(index > -1)
+	{
+		//set timeout then remove like Matt does with end game?
+		//Composite.remove(World, powerup);
+		//level_bodies.splice(index, 1);
+	}
+	else
+		alert("FAILED DELETED POWERUP");
+	}
 }
 
 function checkChrisLevelOne()
@@ -263,7 +322,7 @@ function afterUpdate(event)
 	}
 	
 	buttons['Pause'].options.enabled = is_pausible();
-	buttons['Main Menu'].options.visible = current_state != STATE_LEVEL_SELECT_MENU;
+	buttons['Pause'].options.visible = current_state != STATE_LEVEL_SELECT_MENU;
 	buttons['Balls'].options.visible = is_ready_to_fire() && DEBUG;
 	buttons['Start'].options.visible = current_state == STATE_START_MENU;
 	buttons['Restart'].options.visible = current_state == STATE_PAUSE_MENU;
@@ -280,45 +339,32 @@ function afterUpdate(event)
 	buttons['Level 5'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
 	buttons['Level 6'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
 	buttons['Level 7'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
-
-	if (is_in_menu())
-	{
-		var x = canvas.width / 2; var y = canvas.height / 2;
-		buttons['Start'].move(x, y + 50);
-		buttons['Restart'].move(x, y - 50);
-		buttons['Level Select'].move(x, y)
-		buttons['Quit'].move(x, y + 50);
-		buttons['Cancel'].move(x, y + 100);
-	}
-
-	if(in_level_select()){
-		var x = canvas.width / 3; var y = canvas.height / 2;
-		buttons['Level 0'].move(x, y - 50);
-		buttons['Level 1'].move(x, y);
-		buttons['Level 2'].move(x, y + 50);
-		buttons['Level 3'].move(x, y + 100);
-		buttons['Level 4'].move(x*2, y - 50);
-		buttons['Level 5'].move(x*2, y);
-		buttons['Level 6'].move(x*2, y + 50);
-		buttons['Level 7'].move(x*2, y + 100);
-	}
 }
 
 // Check to see if the ball collided with the target
 function afterCollision(event)
 {
-	if (!is_playing() || current_state == STATE_TARGET_HIT)
+	if (!is_playing())
 		return;
 	//console.log("after collision");
+
 	for(var k in event.pairs)
 	{
 		var a = event.pairs[k].bodyA;
 		var b = event.pairs[k].bodyB;
 		if ((a.name == "ball" && b.name == "target") || (a.name == "target" && b.name == "ball"))
 		{
+			//console.log("Target hit detected..." + current_state + ',' + current_level);
+			//console.log(engine.world.bodies);
+			var ball_found = false;
+			for(i in engine.world.bodies)
+				if (engine.world.bodies[i].name == 'ball')
+					ball_found = true;
+			if (!ball_found)
+				console.error('Ball collision detected but no ball objects found in the world...');
 			// Run next level in 5 seconds...
 			current_state = STATE_TARGET_HIT;
-			setTimeout(function() { run_level(current_level + 1); }, DEBUG ? 500 : 5000);
+			setTimeout(function() { run_level(current_level + 1); unlock_level(current_level + 1); }, DEBUG ? 500 : 5000);
 			break;
 		}
 	}
@@ -442,6 +488,18 @@ function mousedown(event)
 			return;
 	}
 	
+	//check to see if they want to place a powerup
+	if(current_state == STATE_POWERUP)
+	{
+		var wpos = canvasToWorldPt(mousePos); //coords of mouse
+		var dx = wpos.x - spawn_zone.x;
+		var dy = wpos.y - spawn_zone.y;
+		if (Math.sqrt(dx*dx + dy*dy) <= spawn_zone.r) //don't place powerup in spawn zone
+			return;
+		powerup_create_fn(wpos);
+		current_state = STATE_MOUSEUP;
+	}
+	
 	if (is_ready_to_fire())
 	{
 		// Check for click in spawn zone
@@ -492,13 +550,7 @@ function keydown(event)
 
 function keyup(event)
 {
-	if (event.code == 'KeyS')
-	{
-		if (current_state == STATE_RUNNING_VISUALIZATION)
-			arrayVis_stop();
-	}
-	else
-		console.log(event.code + ' pressed.');
+	console.log(event.code + ' pressed.');
 }
 
 function mousewheel(event)
@@ -506,6 +558,26 @@ function mousewheel(event)
 	camera.moveZoom(event.wheelDelta / -2);
 }
 
+// Runs when page resizes
+function windowresize()
+{
+	// Reposition canvas buttons
+	var x = canvas.width / 2; var y = canvas.height / 2;
+	buttons['Start'].move(x, y + 50);
+	buttons['Restart'].move(x, y - 50);
+	buttons['Level Select'].move(x, y)
+	buttons['Quit'].move(x, y + 50);
+	buttons['Cancel'].move(x, y + 100);
+	x = canvas.width / 3;
+	buttons['Level 0'].move(x, y - 50);
+	buttons['Level 1'].move(x, y);
+	buttons['Level 2'].move(x, y + 50);
+	buttons['Level 3'].move(x, y + 100);
+	buttons['Level 4'].move(x*2, y - 50);
+	buttons['Level 5'].move(x*2, y);
+	buttons['Level 6'].move(x*2, y + 50);
+	buttons['Level 7'].move(x*2, y + 100);
+}
 
 /***********************************************************************
  *                      Level Creation
@@ -586,7 +658,7 @@ level_create_fns.push( function(worldObjects) {	 // level 4
 	create_obstacle(worldObjects, 640, 295, 140, 10);
 	create_obstacle(worldObjects, 400, 300, 160, 20);
 	create_obstacle(worldObjects, 270, 100, 520, 70);
-	create_obstacle(worldObjects, 370, 800, 120, 570);
+	create_obstacle(worldObjects, 370, 525, 120, 150);
 	create_obstacle(worldObjects, -370, 120, 300, 70);
 	create_obstacle(worldObjects, -270, -100, 150, 150);
 	create_obstacle(worldObjects, 840, 525, 30, 150);
@@ -639,8 +711,29 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 	worldObjects.push(spinbar3);
 	worldObjects.push(bar);
 	worldObjects.push(bar2);
-
 	worldObjects.push(circleStack);
+	
+});
+
+level_create_fns.push( function(worldObjects) {	 // Chris level 8
+	create_common(worldObjects, 510, 80, 60, 540);
+		
+	var circleStack = Composites.stack(200, 185, 8, 1, 20, 0, function(x, y) {
+            return Bodies.circle(x, y, 30, {name:"explode"});
+        });
+
+	var bar = Bodies.rectangle(175, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
+	var bar2 = Bodies.rectangle(820, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
+	var platform = Bodies.rectangle(500, 100, 120, 30, {name:"horizBar", isStatic: true, render:{fillStyle: 'brown'}});
+	
+	Composites.chain(circleStack, 0.5, 0, -0.5, 0, { stiffness: 0.9 });
+
+	var firstC = Constraint.create({ pointA: { x: 190, y: 200 }, bodyB: circleStack.bodies[0], pointB: {x: -30, y: 0}})
+	firstC.name = "firstC";
+	var secondC = Constraint.create({ pointA: { x: 805, y: 200 }, bodyB: circleStack.bodies[circleStack.bodies.length-1], pointB: { x: 30, y: 0 } })
+	secondC.name="secondC";
+	
+	worldObjects.push(circleStack, bar, bar2, firstC, secondC, platform);
 	
 });
 
@@ -694,6 +787,54 @@ function set_rubber()
 	}
 }
  
+
+//icon from: https://cdn2.iconfinder.com/data/icons/interface-6/60/power_arrow_up-512.png
+function set_powerupforce()
+{
+	current_state = STATE_POWERUP;
+	powerup_enabled = true;
+	powerup_create_fn = function(pos) //create function to call powerup and place at pos
+	{
+		var powerup = Bodies.circle(pos.x, pos.y, 10, {
+			name:"powerup_force",
+			timeScale: 0,
+			angle: -Math.PI*.5,
+			density: 0.05,
+			restitution: 0.8,
+			isStatic: true,
+			render:{fillStyle: '#FFF', //set image instead
+			strokeStyle: '#EC2128'}
+		});
+		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
+		World.add(engine.world, powerup);
+		level_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
+		avis.insert({drawfn:draw_body, body:powerup});
+	}
+}
+
+//icon from: https://cdn2.iconfinder.com/data/icons/interface-6/60/power_arrow_up-512.png
+function set_powerupenlarge()
+{
+	current_state = STATE_POWERUP;
+	powerup_enabled = true;
+	powerup_create_fn = function(pos) //create function to call powerup and place at pos
+	{
+		var powerup = Bodies.circle(pos.x, pos.y, 10, {
+			name:"powerup_enlarge",
+			timeScale: 0,
+			density: 0.05,
+			restitution: 0.8,
+			isStatic: true,
+			render:{fillStyle: '#FFF', //set image instead
+			strokeStyle: '#EC2128'}
+		});
+		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
+		World.add(engine.world, powerup);
+		level_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
+		avis.insert({drawfn:draw_body, body:powerup});
+	}
+}  
+
  /***********************************************************************
  *                      Misc. Functions
  ***********************************************************************/
@@ -735,17 +876,20 @@ function reset_engine()
 	// Clear previous bodies from world
 	World.clear(engine.world);
 
+	// Stop any old events (collision, etc)
+	Engine.clear(engine);
+
 	// Start up the engine
 	fps_runner = Engine.run(engine);
-	
+
 	// Freeze simulation
-	engine.timing.timeScale = 0;
-	
+	engine.timing.timeScale = 0;	
 }
 
 
 function run_level(n)
 {
+	console.log('run_level(' + n + ')');
 	if (typeof level_create_fns[n] != 'function')
 	{	// This level is not defined
 		n = 0;
@@ -753,6 +897,7 @@ function run_level(n)
 	
 	ball_madness = false;
 	current_state = STATE_INITIALIZING;
+
 	reset_engine();
 	
 	ball = target = null;
@@ -760,6 +905,7 @@ function run_level(n)
 	// Reset visualizations
 	avis.reset();
 	vvis.reset();
+	fvis.reset();
 	
 	// Run visualization initialization
 	v_init();
@@ -786,6 +932,11 @@ function run_level(n)
 
 	current_state = STATE_MOUSEUP;
 	engine.timing.timeScale = 1;
+}
+
+function unlock_level(n){
+	var level = 'Level '+n;
+	buttons[level].options.enabled = true;
 }
 
 // Draws a text box centered at (xCenter, yCenter)

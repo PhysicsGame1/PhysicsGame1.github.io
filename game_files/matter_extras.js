@@ -83,16 +83,19 @@ Matter.Body.drawAt = function(engine, body, context, x, y, size)
 	{
 		// Calculate body bounds through vertices
 		// Note: Cannot use body.bounds as it does not give the correct results in negative coordinates
-		var xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+		var max_width = 0;
 		for (var i = 0; i < body.vertices.length; i++)
 		{
-			var v = body.vertices[i];
-			if (v.x < xmin) { xmin = v.x };
-			if (v.x > xmax) { xmax = v.x };
-			if (v.y < ymin) { ymin = v.y };
-			if (v.y > ymax) { ymax = v.y };
+			for (var j = i+1; j < body.vertices.length; j++)
+			{
+				var v1 = body.vertices[i];
+				var v2 = body.vertices[j];
+				var dist = Math.pow(v1.x - v2.x, 2) + Math.pow(v1.y - v2.y, 2);
+				if (dist > max_width)
+					max_width = dist;
+			}
 		}
-		scale = size / Math.max(Math.abs(xmax - xmin), Math.abs(ymax - ymin));
+		scale = size / Math.sqrt(max_width);
 	}
 	var bx = body.position.x;
 	var by = body.position.y;
@@ -306,7 +309,6 @@ function canvas_button(canvas, text, x, y, onclick, options)
 			}.bind(this);
 		}
 	}
-
 	this.ctx = canvas.getContext('2d');
 	this.mouse = Matter.Mouse.create(canvas);
 }

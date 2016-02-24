@@ -24,7 +24,7 @@ function pixiGetFontHeight(fontStyle)
 
 		pixiGetFontHeight.fontHeightCache[fontStyle] = result;
 		body.removeChild(dummy);
-		debug("pixiGetFontHeight: Cached " + fontStyle + " = " + result);
+		//debug("pixiGetFontHeight: Cached " + fontStyle + " = " + result);
 	}
 
 	return result;

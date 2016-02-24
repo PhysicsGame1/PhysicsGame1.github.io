@@ -9,14 +9,36 @@ vvis.setCanvas(v_canvas);
 var avis = new array_visualization();
 avis.setCanvas(v_canvas);
 
+// Contains the flowchart visualization
+var fvis = new flowchart_visualization();
+fvis.setCanvas(v_canvas);
+
 /***********************************************************************
  *                     Visualization Initialization
  ***********************************************************************/
 // This function will be called once on each level by matterdemo
- function v_init()
+function v_init()
 {
 	vvis.addShownKeys('ball', ['position', 'velocity', 'restitution', 'density']);
 	vvis.addShownKeys('target', ['position']);
+	
+	// Create flowchart nodes
+	fvis.terminal('START', 'Start', 0, 0);
+	fvis.io('GETPOS', 'Get ball position', 0, 100);
+	fvis.io('GETFORCE', 'Get ball force', 0, 200);
+	fvis.process('LAUNCH', 'Launch ball', 0, 300);
+	fvis.decision('HITCHECK', 'Ball hit target?', 0, 400);
+	fvis.terminal('END', 'You win', 0, 500);
+	
+	// Create arrows between nodes
+	fvis.arrow('START', 'down', 'GETPOS', 'up');
+	fvis.arrow('GETPOS', 'down', 'GETFORCE', 'up');
+	fvis.arrow('GETFORCE', 'down', 'LAUNCH', 'up');
+	fvis.arrow('LAUNCH', 'down', 'HITCHECK', 'up');
+	fvis.arrow('HITCHECK', 'down', 'END', 'up', 'TRUE');
+	fvis.arrow('HITCHECK', 'left', 'GETPOS', 'left', 'FALSE');
+	
+	fvis.x = 0; fvis.y = 250;
 }
 
 
@@ -70,13 +92,15 @@ function v_updateframe()
 	}
 	else if (vis_tab == 2)  // Variables tab
 	{
+		// Update visualization with new values
+		vvis.setVariable('ball', ball);
+		vvis.setVariable('target', target);
 		vvis.render(0, 0, 500, 560);
 	}
-	//else if (vis_tab == 3)  // Control flow tab
-		
-	// Update visualization with new values
-	vvis.setVariable('ball', ball);
-	vvis.setVariable('target', target);
+	else if (vis_tab == 3)  // Control flow tab
+	{
+		fvis.render();
+	}	
 	
 	v_buttons['Index++'].options.visible = (vis_tab == 1);
 	v_buttons['Index--'].options.visible = (vis_tab == 1);
