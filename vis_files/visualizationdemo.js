@@ -1,5 +1,5 @@
 var v_canvas = document.getElementById('v_canvas');
-var vis_tab = 1;
+var vis_tab = 3;
 
 // Contains the variable visualization
 var vvis = new variable_visualization();
@@ -31,12 +31,13 @@ function v_init()
 	fvis.terminal('END', 'You win', 0, 500);
 	
 	// Create arrows between nodes
-	fvis.arrow('START', 'down', 'GETPOS', 'up');
-	fvis.arrow('GETPOS', 'down', 'GETFORCE', 'up');
-	fvis.arrow('GETFORCE', 'down', 'LAUNCH', 'up');
-	fvis.arrow('LAUNCH', 'down', 'HITCHECK', 'up');
-	fvis.arrow('HITCHECK', 'down', 'END', 'up', 'TRUE');
-	fvis.arrow('HITCHECK', 'left', 'GETPOS', 'left', 'FALSE');
+	fvis.arrow('START', 'south', 'GETPOS', 'north');
+	fvis.arrow('GETPOS', 'south', 'GETFORCE', 'north');
+	fvis.arrow('GETFORCE', 'south', 'LAUNCH', 'north');
+	fvis.arrow('LAUNCH', 'south', 'HITCHECK', 'north');
+	fvis.arrow('HITCHECK', 'south', 'END', 'north', 'TRUE');
+	fvis.arrow('HITCHECK', 'west', 'GETPOS', 'west', 'FALSE');
+	fvis.arrow('END', 'south', 'START', 'north');
 	
 	fvis.x = 0; fvis.y = 250;
 }
@@ -67,15 +68,58 @@ v_buttons['Index++'] = new canvas_button(v_canvas, "Index++", 5, 45, function ()
 /***********************************************************************
  *                     Visualization Events
  ***********************************************************************/
-//vis_canvas.addEventListener('mousemove', v_mousemove);
-//vis_canvas.addEventListener('mousedown', v_mousedown);
+v_canvas.addEventListener('mousemove', v_mousemove);
+v_canvas.addEventListener('mousedown', v_mousedown);
 v_canvas.addEventListener('mouseup', v_mouseup);
 
-//function v_mousemove(event) {}
-//function v_mousedown(event) {}
+var fvis_dragged_object = null;
+var fvis_dragged_inverse = false;
+var v_mousepos = {x:0, y:0};
+function v_mousemove(event)
+{
+	var br = v_canvas.getBoundingClientRect();
+	var x = event.clientX - br.left;
+	var y = event.clientY - br.top;
+	if (vis_tab == 3 && fvis_dragged_object != null)
+	{
+		fvis_dragged_object.x += fvis_dragged_inverse ? v_mousepos.x - x : x - v_mousepos.x;
+		fvis_dragged_object.y += fvis_dragged_inverse ? v_mousepos.y - y : y - v_mousepos.y;
+	}
+	
+	v_mousepos = {x:x, y:y};
+}
+
+function v_mousedown(event)
+{
+	//console.log(event);
+	var br = v_canvas.getBoundingClientRect();
+	var x = event.clientX - br.left;
+	var y = event.clientY - br.top;
+	
+	if (vis_tab == 3)
+	{
+		fvis_dragged_object = fvis;
+		fvis_dragged_inverse = true;
+		// Convert canvas to world coordinates
+		var x_world = x - v_canvas.width / 2 + fvis.x;
+		var y_world = y - v_canvas.height / 2 + fvis.y;
+		// Determine which node was clicked
+		for(var id in fvis.nodes)
+		{
+			var n = fvis.nodes[id];
+			if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
+			{
+				fvis_dragged_object = n;
+				fvis_dragged_inverse = false;
+				return;
+			}
+		}
+	}
+}
 
 function v_mouseup(event)
 {
+	fvis_dragged_object = null;
 	for (k in v_buttons)
 	{
 		if (v_buttons[k].mouseup())

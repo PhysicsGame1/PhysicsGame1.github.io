@@ -274,7 +274,7 @@ function canvas_button(canvas, text, x, y, onclick, options)
 	this.options = Matter.Common.extend(defaults, options);
 
 	this.text = text;
-	this.onclick = onclick;
+	this.onclick = onclick.bind(this);
 	
 	if (this.options.image == null)
 	{ // Determine button size from text size or options

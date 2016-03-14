@@ -1,0 +1,276 @@
+
+\repos\temp\game_files\matter.js
+  0:0  warning  File ignored because of a matching ignore pattern. Use --no-ignore to override
+
+\repos\temp\game_files\matter_extras.js
+   18:2   error  Missing semicolon                    semi
+   24:2   error  Missing semicolon                    semi
+   34:3   error  'Body' is not defined                no-undef
+   34:25  error  'Body' is not defined                no-undef
+   39:2   error  Missing semicolon                    semi
+   54:2   error  Missing semicolon                    semi
+   59:2   error  Missing semicolon                    semi
+   64:2   error  Missing semicolon                    semi
+   70:3   error  'options' is defined but never used  no-unused-vars
+   71:3   error  'body' is already defined            no-redeclare
+   87:12  error  'i' is already defined               no-redeclare
+  147:14  error  'j' is already defined               no-redeclare
+  186:2   error  Missing semicolon                    semi
+  192:2   error  Missing semicolon                    semi
+  198:2   error  Missing semicolon                    semi
+  204:2   error  Missing semicolon                    semi
+  210:2   error  Missing semicolon                    semi
+  216:2   error  Missing semicolon                    semi
+  225:2   error  Missing semicolon                    semi
+  247:2   error  Missing semicolon                    semi
+  281:35  error  'pixiGetFontHeight' is not defined   no-undef
+  281:53  error  'ctx' is not defined                 no-undef
+  282:17  error  'ctx' is not defined                 no-undef
+  282:27  error  'ctx' is not defined                 no-undef
+  283:34  error  'ctx' is not defined                 no-undef
+  284:3   error  'ctx' is not defined                 no-undef
+  324:2   error  Missing semicolon                    semi
+  335:2   error  Missing semicolon                    semi
+  394:14  error  'pixiGetFontHeight' is not defined   no-undef
+  397:2   error  Missing semicolon                    semi
+  401:97  error  Missing semicolon                    semi
+  402:2   error  Missing semicolon                    semi
+
+\repos\temp\game_files\matterdemo.js
+    25:3    error  'Bounds' is defined but never used                no-unused-vars
+    69:5    error  'target' is defined but never used                no-unused-vars
+    87:18   error  'matterjs_camera' is not defined                  no-undef
+   100:24   error  'canvas_button' is not defined                    no-undef
+   106:24   error  'canvas_button' is not defined                    no-undef
+   109:2    error  Unexpected console statement                      no-console
+   113:24   error  'canvas_button' is not defined                    no-undef
+   118:24   error  'canvas_button' is not defined                    no-undef
+   123:26   error  'canvas_button' is not defined                    no-undef
+   128:31   error  'canvas_button' is not defined                    no-undef
+   133:23   error  'canvas_button' is not defined                    no-undef
+   139:25   error  'canvas_button' is not defined                    no-undef
+   144:28   error  'canvas_button' is not defined                    no-undef
+   165:31   error  'canvas_button' is not defined                    no-undef
+   199:1    error  '$' is not defined                                no-undef
+   202:23   error  'event' is defined but never used                 no-unused-vars
+   211:26   error  'event' is defined but never used                 no-unused-vars
+   259:3    error  'k' is not defined                                no-undef
+   260:7    error  'vx' is defined but never used                    no-unused-vars
+   260:26   error  'k' is not defined                                no-undef
+   261:7    error  'vy' is defined but never used                    no-unused-vars
+   261:26   error  'k' is not defined                                no-undef
+   262:6    error  'k' is not defined                                no-undef
+   266:8    error  'px' is defined but never used                    no-unused-vars
+   268:28   error  'k' is not defined                                no-undef
+   269:21   error  'k' is not defined                                no-undef
+   269:29   error  'k' is not defined                                no-undef
+   271:17   error  'k' is not defined                                no-undef
+   274:11   error  'k' is not defined                                no-undef
+   277:8    error  'py' is already defined                           no-redeclare
+   278:8    error  'px' is already defined                           no-redeclare
+   280:28   error  'k' is not defined                                no-undef
+   281:21   error  'k' is not defined                                no-undef
+   281:29   error  'k' is not defined                                no-undef
+   283:17   error  'k' is not defined                                no-undef
+   293:22   error  'event' is defined but never used                 no-unused-vars
+   339:8    error  'i' is not defined                                no-undef
+   340:29   error  'i' is not defined                                no-undef
+   343:5    error  Unexpected console statement                      no-console
+   352:22   error  'event' is defined but never used                 no-unused-vars
+   393:8    error  'i' is not defined                                no-undef
+   395:47   error  'i' is not defined                                no-undef
+   403:8    error  'ballpos' is already defined                      no-redeclare
+   424:28   error  'round' is not defined                            no-undef
+   425:19   error  'round' is not defined                            no-undef
+   425:42   error  'round' is not defined                            no-undef
+   426:19   error  'round' is not defined                            no-undef
+   426:42   error  'round' is not defined                            no-undef
+   441:7    error  'x' is already defined                            no-redeclare
+   441:14   error  'y' is already defined                            no-redeclare
+   452:7    error  'k' is not defined                                no-undef
+   453:11   error  'k' is not defined                                no-undef
+   456:2    error  'v_updateframe' is not defined                    no-undef
+   456:17   error  Missing semicolon                                 semi
+   461:6    error  'mx' is defined but never used                    no-unused-vars
+   462:6    error  'my' is defined but never used                    no-unused-vars
+   483:9    error  'mouseDist' is defined but never used             no-unused-vars
+   492:7    error  'k' is not defined                                no-undef
+   494:15   error  'k' is not defined                                no-undef
+   501:7    error  'dx' is already defined                           no-redeclare
+   502:7    error  'dy' is already defined                           no-redeclare
+   505:3    error  'powerup_create_fn' is not defined                no-undef
+   512:7    error  'dx' is already defined                           no-redeclare
+   513:7    error  'dy' is already defined                           no-redeclare
+   560:24   error  'STATE_RUNNING_VISUALIZATION' is not defined      no-undef
+   561:4    error  'arrayVis_stop' is not defined                    no-undef
+   564:3    error  Unexpected console statement                      no-console
+   579:36   error  Missing semicolon                                 semi
+   733:117  error  Missing semicolon                                 semi
+   735:146  error  Missing semicolon                                 semi
+   772:2    error  'avis' is not defined                             no-undef
+   772:22   error  'draw_body' is not defined                        no-undef
+   775:10   error  'set_iron' is defined but never used              no-unused-vars
+   780:3    error  Missing semicolon                                 semi
+   788:3    error  Missing semicolon                                 semi
+   791:10   error  'set_rubber' is defined but never used            no-unused-vars
+   796:3    error  Missing semicolon                                 semi
+   801:10   error  'set_powerupforce' is defined but never used      no-unused-vars
+   805:2    error  'powerup_create_fn' is not defined                no-undef
+   822:38   error  Missing semicolon                                 semi
+   829:3    error  'avis' is not defined                             no-undef
+   829:23   error  'draw_body' is not defined                        no-undef
+   830:3    error  Missing semicolon                                 semi
+   834:10   error  'set_powerup_teleport' is defined but never used  no-unused-vars
+   834:31   error  'texture' is defined but never used               no-unused-vars
+   838:2    error  'powerup_create_fn' is not defined                no-undef
+   869:3    error  'avis' is not defined                             no-undef
+   869:23   error  'draw_body' is not defined                        no-undef
+   873:3    error  'avis' is not defined                             no-undef
+   873:23   error  'draw_body' is not defined                        no-undef
+   874:3    error  Missing semicolon                                 semi
+   895:6    error  'i' is not defined                                no-undef
+   895:13   error  'i' is not defined                                no-undef
+   895:22   error  'i' is not defined                                no-undef
+   931:2    error  Unexpected console statement                      no-console
+   947:2    error  'avis' is not defined                             no-undef
+   948:2    error  'vvis' is not defined                             no-undef
+   949:2    error  'fvis' is not defined                             no-undef
+   952:2    error  'v_init' is not defined                           no-undef
+   958:2    error  'checkImage' is not defined                       no-undef
+   971:3    error  'avis' is not defined                             no-undef
+   971:42   error  'draw_body' is not defined                        no-undef
+   990:3    error  Missing semicolon                                 semi
+   994:2    error  'saveProperties' is not defined                   no-undef
+  1001:14   error  'pixiGetFontHeight' is not defined                no-undef
+  1008:8    error  'i' is not defined                                no-undef
+  1010:35   error  'i' is not defined                                no-undef
+  1029:7    error  'i' is not defined                                no-undef
+  1032:22   error  'i' is not defined                                no-undef
+  1034:22   error  'i' is not defined                                no-undef
+  1038:2    error  'restoreProperties' is not defined                no-undef
+  1045:10   error  'debug' is defined but never used                 no-unused-vars
+  1048:3    error  Unexpected console statement                      no-console
+  1061:10   error  'canvasToWorldCoords' is defined but never used   no-unused-vars
+  1120:10   error  'in_level_select' is defined but never used       no-unused-vars
+
+\repos\temp\game_files\utility.js
+   8:10  error  'pixiGetFontHeight' is defined but never used  no-unused-vars
+  33:10  error  'saveProperties' is defined but never used     no-unused-vars
+  36:7   error  'k' is not defined                             no-undef
+  37:8   error  'k' is not defined                             no-undef
+  37:17  error  'k' is not defined                             no-undef
+  40:10  error  'restoreProperties' is defined but never used  no-unused-vars
+  42:7   error  'k' is not defined                             no-undef
+  43:7   error  'k' is not defined                             no-undef
+  43:17  error  'k' is not defined                             no-undef
+  58:2   error  Missing semicolon                              semi
+  60:10  error  'round' is defined but never used              no-unused-vars
+  66:10  error  'checkImage' is defined but never used         no-unused-vars
+
+\repos\temp\vis_files\array_visualization.js
+  22:14  error  Missing semicolon  semi
+  83:53  error  Missing semicolon  semi
+
+\repos\temp\vis_files\flowchart_visualization.js
+   42:2   error  Missing semicolon                semi
+   47:2   error  Missing semicolon                semi
+  118:3   error  Unexpected console statement     no-console
+  123:3   error  Unexpected console statement     no-console
+  149:11  error  'id' is already defined          no-redeclare
+  155:11  error  'id' is already defined          no-redeclare
+  160:6   error  'DEBUG' is not defined           no-undef
+  207:6   error  'sdir' is not defined            no-undef
+  209:13  error  'sdir' is not defined            no-undef
+  212:22  error  'sdir' is not defined            no-undef
+  212:27  error  Missing semicolon                semi
+  215:40  error  'sdir' is not defined            no-undef
+  222:20  error  'sdir' is not defined            no-undef
+  235:46  error  Missing semicolon                semi
+  239:32  error  'sdir' is not defined            no-undef
+  244:14  error  'sdir' is not defined            no-undef
+  259:14  error  'sdir' is not defined            no-undef
+  262:24  error  'sdir' is not defined            no-undef
+  266:2   error  Missing semicolon                semi
+  286:10  error  'i' is already defined           no-redeclare
+  288:7   error  'dist' is already defined        no-redeclare
+  298:2   error  Missing semicolon                semi
+  335:3   error  Missing semicolon                semi
+  358:10  error  'x' is already defined           no-redeclare
+  360:11  error  'y' is already defined           no-redeclare
+  371:11  error  'y' is already defined           no-redeclare
+  373:11  error  'x' is already defined           no-redeclare
+  375:8   error  'open' is already defined        no-redeclare
+  376:8   error  'weight' is already defined      no-redeclare
+  385:2   error  Missing semicolon                semi
+  399:2   error  Missing semicolon                semi
+  406:2   error  Missing semicolon                semi
+  411:2   error  Missing semicolon                semi
+  416:2   error  Missing semicolon                semi
+  456:2   error  Missing semicolon                semi
+  483:2   error  Missing semicolon                semi
+  492:25  error  'ctx' is defined but never used  no-unused-vars
+  492:32  error  Unexpected console statement     no-console
+  513:2   error  Missing semicolon                semi
+  523:2   error  Missing semicolon                semi
+  530:2   error  Missing semicolon                semi
+  537:2   error  Missing semicolon                semi
+
+\repos\temp\vis_files\variable_visualization.js
+   67:2   error  Missing semicolon                   semi
+   71:26  error  Missing semicolon                   semi
+   77:10  error  'key' is not defined                no-undef
+   78:24  error  'key' is not defined                no-undef
+   83:26  error  Missing semicolon                   semi
+   85:2   error  Missing semicolon                   semi
+   89:26  error  Missing semicolon                   semi
+   92:7   error  'k' is not defined                  no-undef
+   93:47  error  'k' is not defined                  no-undef
+   94:2   error  Missing semicolon                   semi
+   98:26  error  Missing semicolon                   semi
+  103:2   error  Missing semicolon                   semi
+  107:26  error  Missing semicolon                   semi
+  109:2   error  Missing semicolon                   semi
+  113:26  error  Missing semicolon                   semi
+  116:7   error  'k' is not defined                  no-undef
+  117:47  error  'k' is not defined                  no-undef
+  118:2   error  Missing semicolon                   semi
+  122:26  error  Missing semicolon                   semi
+  127:2   error  Missing semicolon                   semi
+  131:26  error  Missing semicolon                   semi
+  133:2   error  Missing semicolon                   semi
+  138:19  error  'pixiGetFontHeight' is not defined  no-undef
+  142:2   error  'saveProperties' is not defined     no-undef
+  152:7   error  'key' is not defined                no-undef
+  154:26  error  'key' is not defined                no-undef
+  170:26  error  'key' is not defined                no-undef
+  174:17  error  'key' is not defined                no-undef
+  179:2   error  'restoreProperties' is not defined  no-undef
+  181:2   error  Missing semicolon                   semi
+  185:19  error  'pixiGetFontHeight' is not defined  no-undef
+  200:11  error  'key' is already defined            no-redeclare
+  203:7   error  'thisKey' is already defined        no-redeclare
+  227:2   error  Missing semicolon                   semi
+  240:2   error  Missing semicolon                   semi
+  249:2   error  Missing semicolon                   semi
+  267:2   error  Missing semicolon                   semi
+
+\repos\temp\vis_files\visualizationdemo.js
+    5:16  error  'variable_visualization' is not defined    no-undef
+    9:16  error  'array_visualization' is not defined       no-undef
+   13:16  error  'flowchart_visualization' is not defined   no-undef
+   20:10  error  'v_init' is defined but never used         no-unused-vars
+   47:10  error  'draw_body' is defined but never used      no-unused-vars
+   49:21  error  'engine' is not defined                    no-undef
+   58:28  error  'canvas_button' is not defined             no-undef
+   63:28  error  'canvas_button' is not defined             no-undef
+  120:20  error  'event' is defined but never used          no-unused-vars
+  123:7   error  'k' is not defined                         no-undef
+  125:17  error  'k' is not defined                         no-undef
+  131:10  error  'v_updateframe' is defined but never used  no-unused-vars
+  140:28  error  'ball' is not defined                      no-undef
+  141:30  error  'target' is not defined                    no-undef
+  152:7   error  'k' is not defined                         no-undef
+  154:13  error  'k' is not defined                         no-undef
+
+✖ 257 problems (256 errors, 1 warning)
+
