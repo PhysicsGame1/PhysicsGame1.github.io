@@ -5,3 +5,4 @@
 
   ga('create', 'UA-74995888-1', 'auto');
   ga('send', 'pageview');
+  ga('set', 'userId', {{USER_ID}}); // Set the user ID using signed-in user_id.
