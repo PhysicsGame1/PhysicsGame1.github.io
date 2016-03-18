@@ -1,5 +1,5 @@
 var v_canvas = document.getElementById('v_canvas');
-var vis_tab = 3;
+var vis_tab = 1;
 
 // Contains the variable visualization
 var vvis = new variable_visualization();
@@ -19,7 +19,7 @@ fvis.setCanvas(v_canvas);
 // This function will be called once on each level by matterdemo
 function v_init()
 {
-	vvis.addShownKeys('ball', ['position', 'velocity', 'restitution', 'density']);
+	vvis.addShownKeys('ball', ['position.x', 'velocity', 'restitution', 'density']);
 	vvis.addShownKeys('target', ['position']);
 	
 	// Create flowchart nodes
@@ -84,7 +84,14 @@ function v_mousemove(event)
 	{
 		fvis_dragged_object.x += fvis_dragged_inverse ? v_mousepos.x - x : x - v_mousepos.x;
 		fvis_dragged_object.y += fvis_dragged_inverse ? v_mousepos.y - y : y - v_mousepos.y;
+    fvis.dirty = fvis_dragged_object != fvis;
+    
 	}
+  if (vis_tab == 3)
+  {
+    var id = fvis.id_under_mouse(x, y);
+    fvis.highlight(id);
+  }
 	
 	v_mousepos = {x:x, y:y};
 }
@@ -98,29 +105,18 @@ function v_mousedown(event)
 	
 	if (vis_tab == 3)
 	{
-		fvis_dragged_object = fvis;
-		fvis_dragged_inverse = true;
-		// Convert canvas to world coordinates
-		var x_world = x - v_canvas.width / 2 + fvis.x;
-		var y_world = y - v_canvas.height / 2 + fvis.y;
-		// Determine which node was clicked
-		for(var id in fvis.nodes)
-		{
-			var n = fvis.nodes[id];
-			if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
-			{
-				fvis_dragged_object = n;
-				fvis_dragged_inverse = false;
-				return;
-			}
-		}
+    fvis.snap = false;
+		fvis_dragged_object = fvis.node_under_mouse(x, y) || fvis;
+		fvis_dragged_inverse = (fvis_dragged_object == fvis);
 	}
 }
 
 function v_mouseup(event)
 {
-	fvis_dragged_object = null;
-	for (k in v_buttons)
+  fvis.dirty = true;
+  fvis.snap = true;
+  fvis_dragged_object = null;
+	for (var k in v_buttons)
 	{
 		if (v_buttons[k].mouseup())
 			return;
@@ -149,7 +145,7 @@ function v_updateframe()
 	v_buttons['Index++'].options.visible = (vis_tab == 1);
 	v_buttons['Index--'].options.visible = (vis_tab == 1);
 	
-	for (k in v_buttons)
+	for (var k in v_buttons)
 	{
 		v_buttons[k].draw();
 	}

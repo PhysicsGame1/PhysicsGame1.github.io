@@ -19,7 +19,7 @@ array_visualization.prototype.insert = function (options)
 	this[this.count] = options;
 	this[this.count].timestamp = Date.now();
 	this.index = this.count;
-	this.count++
+	this.count++;
 };
 
 array_visualization.prototype.reset = function ()
@@ -80,7 +80,7 @@ array_visualization.prototype.render = function ()
 		ctx.fillStyle = this[i].fillStyle || (i == valid_index ? 'blue' : 'yellow');
 		
 		if (typeof this[i].drawfn == 'function')
-			this[i].drawfn(this[i], ctx, x, y, this.iconsize)
+			this[i].drawfn(this[i], ctx, x, y, this.iconsize);
 		else
 			ctx.fillRect(x, y, this.iconsize, this.iconsize);
 		

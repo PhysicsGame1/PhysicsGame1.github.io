@@ -15,13 +15,13 @@ Matter.Engine.pause = function(engine)
 		engine.paused = true;
 		engine.timing.timeScale = 0;
 	}
-}
+};
 
 Matter.Body.setStyles = function(body, fillStyle, strokeStyle)
 {
 	body.render.fillStyle = fillStyle;
 	body.render.strokeStyle = strokeStyle;
-}
+};
 
 // If mass/density of the body is changed, this function can be used to set the inertia to the "default" value
 Matter.Body.updateInertia = function(body)
@@ -31,12 +31,12 @@ Matter.Body.updateInertia = function(body)
   Matter.Vertices.translate(body.vertices, centre, -1);
 
   // update inertia while vertices are at origin (0, 0)
-  Body.setInertia(body, Body._inertiaScale * Matter.Vertices.inertia(body.vertices, body.mass));
+  Matter.Body.setInertia(body, Matter.Body._inertiaScale * Matter.Vertices.inertia(body.vertices, body.mass));
 
   // update geometry
   Matter.Vertices.translate(body.vertices, body.position);
   Matter.Bounds.update(body.bounds, body.vertices, body.velocity);
-}
+};
 
 Matter.Body.redraw = function(engine, body)
 {
@@ -51,28 +51,24 @@ Matter.Body.redraw = function(engine, body)
 	context.translate(-bounds.min.x, -bounds.min.y);
 	engine.render.controller.bodies(engine, [body], context);
 	context.setTransform(options.pixelRatio, 0, 0, options.pixelRatio, 0, 0);
-}
+};
 
 Matter.Body.disableCollisions = function(body)
 {
 	body.collisionFilter.mask = 0;
-}
+};
 
 Matter.Body.enableCollisions = function(body)
 {
 	body.collisionFilter.mask = 0xFFFFFFFF;
-}
+};
 
 Matter.Body.drawAt = function(engine, body, context, x, y, size)
 {
 	var c = context,
 		render = engine.render,
-		options = render.options,
-		body,
 		part,
-		i,
-		k;
-	
+		i,k;	
 	// Calculate scale
 	var scale;
 	if (body.circleRadius)
@@ -84,9 +80,9 @@ Matter.Body.drawAt = function(engine, body, context, x, y, size)
 		// Calculate body bounds through vertices
 		// Note: Cannot use body.bounds as it does not give the correct results in negative coordinates
 		var max_width = 0;
-		for (var i = 0; i < body.vertices.length; i++)
+		for (i = 0; i < body.vertices.length; i++)
 		{
-			for (var j = i+1; j < body.vertices.length; j++)
+			for (j = i+1; j < body.vertices.length; j++)
 			{
 				var v1 = body.vertices[i];
 				var v2 = body.vertices[j];
@@ -183,37 +179,37 @@ function matterjs_camera(matter_engine)
 matterjs_camera.prototype.translateCamera = function(xOffset, yOffset)
 {
 	this.x += xOffset; this.y += yOffset;
-}
+};
 
 // Sets the camera to an absolute position
 matterjs_camera.prototype.setCameraPos = function(newX, newY)
 {
 	this.x = newX; this.y = newY;
-}
+};
 
 // Sets the camera to an absolute zoom
 matterjs_camera.prototype.setZoom = function(newZoom)
 {
 	this.z = newZoom;
-}
+};
 
 // Shifts the camera zoom from its current value
 matterjs_camera.prototype.moveZoom = function(zoomOffset)
 {
 	this.z += zoomOffset;
-}
+};
 
 // Track (camera follows) a matter.js body
 matterjs_camera.prototype.trackBody = function(b)
 {
 	this.track = b;
-}
+};
 
 // Clears tracked body. Camera position does not change.
 matterjs_camera.prototype.clearTrackedBody = function()
 {
 	this.track = null;
-}
+};
 
 // Sets the camera so that everything within the rectangle (xmin, ymin) -> (xmax, ymax) is in view
 matterjs_camera.prototype.fitToBounds = function(xmin, xmax, ymin, ymax)
@@ -222,7 +218,7 @@ matterjs_camera.prototype.fitToBounds = function(xmin, xmax, ymin, ymax)
 	this.y = (ymax + ymin) / 2;
 	this.z = Math.max(xmax - this.x, ymax - this.y);
 	//console.log('Camera moved to: ' + this.x + ',' + this.y + ',' + this.z);
-}
+};
 
 // Calculates new viewport for matter.js. This should automatically be called by a matter.js event.
 matterjs_camera.prototype.update = function()
@@ -244,7 +240,7 @@ matterjs_camera.prototype.update = function()
 	render.bounds.max.x = this.x + Math.max(r,1) * this.z;
 	render.bounds.min.y = this.y - Math.min(r,1) * this.z;
 	render.bounds.max.y = this.y + Math.min(r,1) * this.z;
-}
+};
 
 
 /***********************************************************************
@@ -271,6 +267,7 @@ function canvas_button(canvas, text, x, y, onclick, options)
 		image: null,
 		centered: false
 	};
+	var ctx = canvas.getContext('2d');
 	this.options = Matter.Common.extend(defaults, options);
 
 	this.text = text;
@@ -321,7 +318,7 @@ canvas_button.prototype.move = function(x, y)
 		this.x -= this.w / 2;
 		this.y -= this.h / 2;
 	}
-}
+};
 
 canvas_button.prototype.mouseup = function()
 {
@@ -332,7 +329,7 @@ canvas_button.prototype.mouseup = function()
 		return true;
 	}
 	return false;
-}
+};
 
 canvas_button.prototype.draw = function()
 {
@@ -394,9 +391,9 @@ canvas_button.prototype.draw = function()
 	var texth = pixiGetFontHeight(ctx.font);
 	var textw = ctx.measureText(this.text).width;
 	ctx.fillText(this.text, this.x + (this.w - textw) / 2, this.y + (this.h - texth) / 2, this.w);
-}
+};
 
 canvas_button.prototype.coordsInSelf = function(pt)
 {
-	return (pt.x >= this.x && pt.x <= this.x + this.w && pt.y >= this.y && pt.y <= this.y + this.h)
-}
+	return (pt.x >= this.x && pt.x <= this.x + this.w && pt.y >= this.y && pt.y <= this.y + this.h);
+};

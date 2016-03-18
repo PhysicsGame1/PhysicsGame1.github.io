@@ -21,8 +21,7 @@ var Engine = Matter.Engine,								//manages updating and rendering canvas
 		Composites = Matter.Composites,					//used to build composites (combining lots of shapes into structures like walls etc)
 		MouseConstraint = Matter.MouseConstraint,		//mouse events must go through mouseconstraint instead of engine now
 		Vector = Matter.Vector,							//for vector algebra
-		Constraint = Matter.Constraint,					//for chaining object's together with composites,
-		Bounds = Matter.Bounds;
+		Constraint = Matter.Constraint;					//for chaining object's together with composites,
 	
 
 // Set up renderer and engine options (see link for more options)
@@ -60,6 +59,7 @@ var current_state;
 var paused_state;
 
 var powerup_enabled = false;
+var powerup_create_fn = function() {};
 
 // Contains functions that help create each level, indexed by level
 var level_create_fns = [];
@@ -91,6 +91,9 @@ var spawn_zone = {x:9001, y:9001, r:100, max_pull:200, divisor:50};
 
 // Frame counter
 var frame = 0;
+//Teleport Global variable
+var teleport_BLUE = false;
+var teleport_ORANGE = false;
 
 /***********************************************************************
  *                      Buttons
@@ -197,6 +200,7 @@ document.addEventListener('keyup', keyup);
 document.addEventListener('keydown', keydown);
 canvas.addEventListener("mousewheel", mousewheel, false);
 $(window).resize(windowresize);
+$(window).ready(windowresize);
 
 
 function beforeUpdate(event)
@@ -231,22 +235,47 @@ function checkPowerupHit()
 				var force = Vector.create(netF*Math.sin(powerup.angle), -netF*Math.cos(powerup.angle));
 				console.log("FORCE ANGLE = ", 180*powerup.angle/Math.PI);
 				Body.applyForce(ball, ball.position, force);
+				Composite.remove(engine.world, powerup, true);
+			powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
+			powerup_bodies.pop(); //remove duplicate at end
 			}
-			else if(powerup.name=="powerup_teleport"){
+			else if(powerup.name=="powerup_teleport_blue"){
+				if(teleport_ORANGE){
+					
+					var deltax = -(teleport_BLUE.position.x - teleport_ORANGE.position.x);
+					var deltay = -(teleport_BLUE.position.y - teleport_ORANGE.position.y);
+					Body.translate(ball, {x:deltax,y:deltay});
+					Composite.remove(engine.world, powerup, true);
+					powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
+					powerup_bodies.pop(); //remove duplicate at end
+				}
 				
-			Body.translate(ball,{x:300,y:0});
-			}			
+			}
+			else if(powerup.name=="powerup_teleport_orange"){
+				if(teleport_BLUE){
+					
+					Composite.remove(engine.world, powerup, true);
+					powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
+					powerup_bodies.pop(); //remove duplicate at end
+					teleport_ORANGE= false;
+					teleport_BLUE = false;
+				}
+				
+				//alert("teleport_Blue_x = "+ teleport_BLUE.position.x);
+			}	
 		
 			//remove powerup once triggered
 			//remove from powerup_bodies and from the world?
 			//console.log(powerup.type);
 			//alert(engine.world);
-			Composite.remove(engine.world, powerup, true);
-			powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
-			powerup_bodies.pop(); //remove duplicate at end
+			
+			
 		}
 	}
 }
+
+
+
 
 function checkChrisLevelOne()
 {
@@ -331,12 +360,6 @@ function afterCollision(event)
 		{
 			//console.log("Target hit detected..." + current_state + ',' + current_level);
 			//console.log(engine.world.bodies);
-			var ball_found = false;
-			for(i in engine.world.bodies)
-				if (engine.world.bodies[i].name == 'ball')
-					ball_found = true;
-			if (!ball_found)
-				console.error('Ball collision detected but no ball objects found in the world...');
 			// Run next level in 5 seconds...
 			current_state = STATE_TARGET_HIT;
 			setTimeout(function() { run_level(current_level + 1); }, DEBUG ? 500 : 5000);
@@ -374,7 +397,7 @@ function afterRender(event)
 		var mouseDist = Vector.sub(canvasToWorldPt(mousePos), ball.position);
 		var angle = Vector.angle(canvasToWorldPt(mousePos), ball.position); //angle between PI and -PI relative to 0 x-axis
 		var netF = Math.min(Vector.magnitude(mouseDist), spawn_zone.max_pull);
-		
+		var ballpos;
 		
 		if (DEBUG)
 		{ // Draw a trajectory
@@ -384,9 +407,9 @@ function afterRender(event)
 			var futurePositions = calcFuture(ball, force);
 			// Draw a line between each position in sequence	
 			ctx.strokeStyle = 'yellow';
-			var ballpos = worldToCanvasPt(ball.position);
+			ballpos = worldToCanvasPt(ball.position);
 			ctx.beginPath(); ctx.moveTo(ballpos.x, ballpos.y);
-			for(i in futurePositions)
+			for(var i in futurePositions)
 			{
 				var tmp = worldToCanvasPt(futurePositions[i]);
 				ctx.lineTo(tmp.x, tmp.y);
@@ -396,7 +419,7 @@ function afterRender(event)
 		else
 		{  // Draw a simple arrow
 			var direction = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
-			var ballpos = worldToCanvasPt(ball.position);
+			ballpos = worldToCanvasPt(ball.position);
 			var arrowtip = worldToCanvasPt(Vector.add(ball.position, direction));
 			draw_arrow(ballpos.x, ballpos.y, arrowtip.x, arrowtip.y);	
 		}
@@ -434,7 +457,8 @@ function afterRender(event)
 	if (is_in_menu())
 	{
 		ctx.fillStyle = '#009900'; ctx.strokeStyle = 'yellow';
-		var x = 0, y = 0, w = canvas.width, h = canvas.height;
+		x = 0, y = 0;
+		var w = canvas.width, h = canvas.height;
 		ctx.fillRect(x, y, w, h);
 		ctx.strokeRect(x, y, w, h);
 		if (current_state == STATE_START_MENU)
@@ -445,17 +469,17 @@ function afterRender(event)
 		}
 	}
 	
-	for (k in buttons)
+	for (var k in buttons)
 		buttons[k].draw();
 	
 	// Run visualization callback
-	v_updateframe()
+	v_updateframe();
 }
 
 function mousedown(event)
 {
-	var mx = event.mouse.position.x;
-	var my = event.mouse.position.y;
+	//var mx = event.mouse.position.x;
+	//var my = event.mouse.position.y;
 	var wpos = canvasToWorldPt(mousePos);
 	
 	//alert(powerup_bodies.length);
@@ -473,7 +497,7 @@ function mousedown(event)
 		//	alert(distanceToClick);
 			if (distanceToClick <= radius) //mouse slick is inside
 			{
-				var mouseDist = Vector.sub(canvasToWorldPt(event.mouse.position), powerup.position);
+				//var mouseDist = Vector.sub(canvasToWorldPt(event.mouse.position), powerup.position);
 				var offset = Math.PI*0.5; //offset for force powerup to 0 degrees right instead of up
 				var angle = -offset + Vector.angle(canvasToWorldPt(event.mouse.position), powerup.position); //angle between PI and -PI relative to 0 x-axis
 				var test = (Math.PI*180/angle)%360;
@@ -485,17 +509,18 @@ function mousedown(event)
 		}
 	}
 	
-	for (k in buttons)
+	for (var k in buttons)
 	{
 		if (buttons[k].mouseup())
 			return;
 	}
 	
+	var dx,dy;
 	//check to see if they want to place a powerup
 	if(current_state == STATE_POWERUP)
 	{
-		var dx = wpos.x - spawn_zone.x;
-		var dy = wpos.y - spawn_zone.y;
+		dx = wpos.x - spawn_zone.x;
+		dy = wpos.y - spawn_zone.y;
 		if (Math.sqrt(dx*dx + dy*dy) <= spawn_zone.r) //don't place powerup in spawn zone
 			return;
 		powerup_create_fn(wpos);
@@ -505,8 +530,8 @@ function mousedown(event)
 	if (is_ready_to_fire())
 	{
 		// Check for click in spawn zone
-		var dx = wpos.x - spawn_zone.x;
-		var dy = wpos.y - spawn_zone.y;
+		dx = wpos.x - spawn_zone.x;
+		dy = wpos.y - spawn_zone.y;
 		if (Math.sqrt(dx*dx + dy*dy) > spawn_zone.r)
 			return;
 		// Spawn a ball
@@ -551,13 +576,7 @@ function keydown(event)
 
 function keyup(event)
 {
-	if (event.code == 'KeyS')
-	{
-		if (current_state == STATE_RUNNING_VISUALIZATION)
-			arrayVis_stop();
-	}
-	else
-		console.log(event.code + ' pressed.');
+	console.log(event.code + ' pressed.');
 }
 
 function mousewheel(event)
@@ -572,7 +591,7 @@ function windowresize()
 	var x = canvas.width / 2; var y = canvas.height / 2;
 	buttons['Start'].move(x, y + 50);
 	buttons['Restart'].move(x, y - 50);
-	buttons['Level Select'].move(x, y)
+	buttons['Level Select'].move(x, y);
 	buttons['Quit'].move(x, y + 50);
 	buttons['Cancel'].move(x, y + 100);
 }
@@ -726,9 +745,9 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 8
 	
 	Composites.chain(circleStack, 0.5, 0, -0.5, 0, { stiffness: 0.9 });
 
-	var firstC = Constraint.create({ pointA: { x: 190, y: 200 }, bodyB: circleStack.bodies[0], pointB: {x: -30, y: 0}})
+	var firstC = Constraint.create({ pointA: { x: 190, y: 200 }, bodyB: circleStack.bodies[0], pointB: {x: -30, y: 0}});
 	firstC.name = "firstC";
-	var secondC = Constraint.create({ pointA: { x: 805, y: 200 }, bodyB: circleStack.bodies[circleStack.bodies.length-1], pointB: { x: 30, y: 0 } })
+	var secondC = Constraint.create({ pointA: { x: 805, y: 200 }, bodyB: circleStack.bodies[circleStack.bodies.length-1], pointB: { x: 30, y: 0 } });
 	secondC.name="secondC";
 	
 	worldObjects.push(circleStack, bar, bar2, firstC, secondC, platform);
@@ -773,7 +792,7 @@ function set_iron()
 	ball_create_fn = function(pos)
 	{
 		ball_create_common(pos, 0.4, 0.09, 'images/iron_ball.png');
-	}
+	};
 }
 
 function set_steel()
@@ -781,7 +800,7 @@ function set_steel()
 	ball_create_fn = function(pos)
 	{
 		ball_create_common(pos, 0.3, 0.07, 'images/steel_ball.png');
-	}
+	};
 }
 
 function set_rubber()
@@ -789,7 +808,7 @@ function set_rubber()
 	ball_create_fn = function(pos)
 	{
 		ball_create_common(pos, 0.9, 0.05, 'images/rubber_ball.png');
-	}
+	};
 }
  
 
@@ -815,26 +834,27 @@ function set_powerupforce()
 			}}
 		});
 		// Fix texture position (matter.js changes these in Body.create so it must be set after creation)
-		powerup.render.sprite.xOffset = 0.5
+		powerup.render.sprite.xOffset = 0.5;
 		powerup.render.sprite.yOffset = 0.5;
 		//console.log("MY ANGLE = ", 180*powerup.angle/Math.PI);
 		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
 		World.add(engine.world, powerup);
 		powerup_bodies.push(powerup);
 		avis.insert({drawfn:draw_body, body:powerup});
-	}
+	};
 }
 
 //icon from: https://cdn2.iconfinder.com/data/icons/interface-6/60/power_arrow_up-512.png
-function set_powerup_teleport(texture)
+function set_powerup_teleport_orange()
 {
 	current_state = STATE_POWERUP;
 	powerup_enabled = true;
+	
 	powerup_create_fn = function(pos) //create function to call powerup and place at pos
 	{
 		var texture = "images/Teleport_Symbol_end.png";
 		var powerup = Bodies.circle(pos.x, pos.y, 10, {
-			name:"powerup_teleport",
+			name:"powerup_teleport_orange",
 			timeScale: 0,
 			density: 0.05,
 			restitution: 0.8,
@@ -844,10 +864,24 @@ function set_powerup_teleport(texture)
 					xScale:0.4,
 					yScale:0.4}}
 		});
-		
+		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
+		World.add(engine.world, powerup);
+		powerup_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
+		avis.insert({drawfn:draw_body, body:powerup});
+		teleport_ORANGE = powerup;
+	};
+}
+
+function set_powerup_teleport_blue()
+{	
+	current_state = STATE_POWERUP;
+	powerup_enabled = true;
+	
+	powerup_create_fn = function(pos) //create function to call powerup and place at pos
+	{
 		var texture1 = "images/Teleport_Symbol.png";
-		var powerupend = Bodies.circle(pos.x-300, pos.y, 10, {
-			name:"powerup_teleport",
+		var powerup = Bodies.circle(pos.x, pos.y, 10, {
+			name:"powerup_teleport_blue",
 			timeScale: 0,
 			density: 0.05,
 			restitution: 0.8,
@@ -858,16 +892,14 @@ function set_powerup_teleport(texture)
 					yScale:0.4}}
 		});
 		
+		
 		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
 		World.add(engine.world, powerup);
 		powerup_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
 		avis.insert({drawfn:draw_body, body:powerup});
-		Body.disableCollisions(powerupend);	//powerup should be "invisible" however turning off collisions mean no collision detection
-		World.add(engine.world, powerupend);
-		powerup_bodies.push(powerupend); //must add powerup to level bodies here to access in beforeUpdate
-		avis.insert({drawfn:draw_body, body:powerup});
-	}
-}  
+		teleport_BLUE = powerup;
+	};
+}
 
  /***********************************************************************
  *                      Misc. Functions
@@ -887,7 +919,7 @@ function set_powerup_teleport(texture)
 
 	// Calculate and store 180 physics timesteps into the future
 	var futurePositions = [];
-	for(i = 1; i < 180; i++)
+	for(var i = 1; i < 180; i++)
 	{
 		// update velocity with Verlet integration
 		vx = (vx * frictionAir) + (force.x / bodyMass) * deltaTimeSquared;
@@ -982,7 +1014,7 @@ function draw_textbox(text, xCenter, yCenter, options)
 		textBackColor: 'black',
 		font: '16px Arial',
 		centered: true
-	}
+	};
 	var tb = Matter.Common.extend(defaults, options);
 
 	var ctxBackup;
@@ -1000,7 +1032,7 @@ function draw_textbox(text, xCenter, yCenter, options)
 		w = tb.width;
 	else
 	{
-		for (i in lines)
+		for (var i in lines)
 		{
 			var tw = ctx.measureText(lines[i]).width;
 			if (tw > w)
@@ -1115,6 +1147,7 @@ function is_pausible()
 function in_level_select(){
 	return current_state >= STATE_LEVEL_SELECT_MENU;
 }
+
 
 generate_level_buttons(level_create_fns.length);
 reset_engine();

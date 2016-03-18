@@ -15,3 +15,12 @@
 #select_learn{
   
 }
+.indent{
+	padding-left: 50px;
+}
+.about{
+	font-size: 16pt;
+}
+#about_img{
+	margin: 0 120px;
+}

@@ -33,13 +33,13 @@ function pixiGetFontHeight(fontStyle)
 function saveProperties(ctx, copy)
 {
 	copy = {};
-	for (k in ctx)
+	for (var k in ctx)
 		copy[k] = ctx[k];
 }
 
 function restoreProperties(ctx, copy)
 {
-	for (k in copy)
+	for (var k in copy)
 		ctx[k] = copy[k];
 }
 
@@ -55,7 +55,7 @@ CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
   this.arcTo(x,   y,   x+w, y,   r);
   this.closePath();
   return this;
-}
+};
 
 function round(num, decimals)
 {
