@@ -1,48 +1,62 @@
 ﻿
 \capstone.f15.learninggames.averagejoes\game_files\matterdemo.js
-   112:2   warning  Unexpected console statement        no-console
-   236:5   warning  Unexpected console statement        no-console
-   285:7   error    'vx' is defined but never used      no-unused-vars
-   286:7   error    'vy' is defined but never used      no-unused-vars
-   291:8   error    'px' is defined but never used      no-unused-vars
-   302:8   error    'py' is already defined             no-redeclare
-   303:8   error    'px' is already defined             no-redeclare
-   365:15  warning  Don't make functions within a loop  no-loop-func
-   506:5   warning  Unexpected console statement        no-console
-   579:2   warning  Unexpected console statement        no-console
-   958:2   warning  Unexpected console statement        no-console
-  1075:3   warning  Unexpected console statement        no-console
+   135:2   warning  Unexpected console statement                no-console
+   149:11  warning  'i' is already declared in the upper scope  no-shadow
+   160:11  error    'i' is already defined                      no-redeclare
+   162:8   error    'r' is already defined                      no-redeclare
+   220:10  warning  'i' is already declared in the upper scope  no-shadow
+   267:20  error    'v_canvas' is not defined                   no-undef
+   282:7   error    'v_mousedown' is not defined                no-undef
+   294:5   error    'v_mousemove' is not defined                no-undef
+   300:7   error    'v_mouseup' is not defined                  no-undef
+   325:10  warning  'i' is already declared in the upper scope  no-shadow
+   335:5   warning  Unexpected console statement                no-console
+   381:10  warning  'i' is already declared in the upper scope  no-shadow
+   400:8   error    'py' is already defined                     no-redeclare
+   443:29  warning  Don't make functions within a loop          no-loop-func
+   452:15  warning  Don't make functions within a loop          no-loop-func
+   471:6   warning  'i' is already declared in the upper scope  no-shadow
+   527:12  warning  'i' is already declared in the upper scope  no-shadow
+   600:10  warning  'i' is already declared in the upper scope  no-shadow
+   620:5   warning  Unexpected console statement                no-console
+   689:2   warning  Unexpected console statement                no-console
+  1046:10  warning  'i' is already declared in the upper scope  no-shadow
+  1086:2   warning  Unexpected console statement                no-console
+  1151:12  warning  'i' is already declared in the upper scope  no-shadow
+  1237:3   warning  Unexpected console statement                no-console
 
-✖ 12 problems (5 errors, 7 warnings)
+✖ 24 problems (7 errors, 17 warnings)
 
 
 \capstone.f15.learninggames.averagejoes\vis_files\flowchart_visualization.js
    91:9   warning  'x' is already declared in the upper scope  no-shadow
    91:21  warning  'y' is already declared in the upper scope  no-shadow
-  212:7   error    'DEBUG' is not defined                      no-undef
-  611:26  error    'ctx' is defined but never used             no-unused-vars
+  617:26  error    'ctx' is defined but never used             no-unused-vars
 
-✖ 4 problems (2 errors, 2 warnings)
+✖ 3 problems (1 error, 2 warnings)
 
 
 \capstone.f15.learninggames.averagejoes\vis_files\variable_visualization.js
-  138:19  error  'pixiGetFontHeight' is not defined  no-undef
-  142:2   error  'saveProperties' is not defined     no-undef
-  179:2   error  'restoreProperties' is not defined  no-undef
-  185:19  error  'pixiGetFontHeight' is not defined  no-undef
+  333:19  error  'pixiGetFontHeight' is not defined  no-undef
+  379:19  error  'pixiGetFontHeight' is not defined  no-undef
 
-✖ 4 problems (4 errors, 0 warnings)
+✖ 2 problems (2 errors, 0 warnings)
+
+
+\capstone.f15.learninggames.averagejoes\vis_files\visualizationdemo.js
+   74:10  error  'v_mousemove' is defined but never used  no-unused-vars
+   94:10  error  'v_mousedown' is defined but never used  no-unused-vars
+  107:10  error  'v_mouseup' is defined but never used    no-unused-vars
+
+✖ 3 problems (3 errors, 0 warnings)
 
 
 \capstone.f15.learninggames.averagejoes\input.js
-   5:5   error  'cannon_height' is defined but never used  no-unused-vars
-  37:7   error  'reload' is not defined                    no-undef
-  49:8   error  'runAnimation' is not defined              no-undef
-  50:7   error  'runAnimation' is not defined              no-undef
-  50:29  error  'runAnimation' is not defined              no-undef
-  55:5   error  'reload' is not defined                    no-undef
-  67:5   error  'reload' is not defined                    no-undef
-  69:12  error  'linkToGame' is defined but never used     no-unused-vars
+  2:5   error  'initial_velocity' is defined but never used     no-unused-vars
+  3:5   error  'cannon_theta' is defined but never used         no-unused-vars
+  4:5   error  'cannon_height_value' is defined but never used  no-unused-vars
+  5:5   error  'cannon_height' is defined but never used        no-unused-vars
+  8:12  error  'linkToGame' is defined but never used           no-unused-vars
 
-✖ 8 problems (8 errors, 0 warnings)
+✖ 5 problems (5 errors, 0 warnings)
 

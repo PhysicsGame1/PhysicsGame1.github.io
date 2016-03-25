@@ -333,8 +333,6 @@ variable_visualization.prototype.render = function()
 	var fontHeight = pixiGetFontHeight(this.fontSize + "px " + this.font);
 	var ctx = this.outputContext;
 	
-	var ctxBackup;
-	
 	ctx.font = this.fontSize + "px " + this.font;
 	
   ctx.textAlign = 'left';

@@ -24,11 +24,11 @@ function v_init()
 	
 	// Create flowchart nodes
 	fvis.terminal('START', 'Start', 0, 0);
-	fvis.io('GETPOS', 'Get ball position', 0, 100);
-	fvis.io('GETFORCE', 'Get ball force', 0, 200);
-	fvis.process('LAUNCH', 'Launch ball', 0, 300);
-	fvis.decision('HITCHECK', 'Ball hit target?', 0, 400);
-	fvis.terminal('END', 'You win', 0, 500);
+	fvis.io('GETPOS', 'Get ball position', 0, 80);
+	fvis.io('GETFORCE', 'Get ball force', 0, 160);
+	fvis.process('LAUNCH', 'Launch ball', 0, 240);
+	fvis.decision('HITCHECK', 'Ball hit target?', 0, 320);
+	fvis.terminal('END', 'You win', 0, 400);
 	
 	// Create arrows between nodes
 	fvis.arrow('START', 'south', 'GETPOS', 'north');
@@ -39,7 +39,7 @@ function v_init()
 	fvis.arrow('HITCHECK', 'west', 'GETPOS', 'west', 'FALSE');
 	fvis.arrow('END', 'south', 'START', 'north');
 	
-	fvis.x = 0; fvis.y = 250;
+	fvis.x = 0; fvis.y = 200;
 }
 
 
@@ -62,46 +62,40 @@ v_buttons['Index--'] = new canvas_button(v_canvas, "Index--", 5, 5, function ()
 
 v_buttons['Index++'] = new canvas_button(v_canvas, "Index++", 5, 45, function ()
 {
-	avis.index = Math.min(avis.count-1, avis.index + 1);
+	avis.index = Math.min(avis.array.length-1, avis.index + 1);
 });
 
 /***********************************************************************
  *                     Visualization Events
  ***********************************************************************/
-v_canvas.addEventListener('mousemove', v_mousemove);
-v_canvas.addEventListener('mousedown', v_mousedown);
-v_canvas.addEventListener('mouseup', v_mouseup);
-
 var fvis_dragged_object = null;
 var fvis_dragged_inverse = false;
 var v_mousepos = {x:0, y:0};
 function v_mousemove(event)
 {
-	var br = v_canvas.getBoundingClientRect();
-	var x = event.clientX - br.left;
-	var y = event.clientY - br.top;
+	var x = event.x;
+	var y = event.y;
 	if (vis_tab == 3 && fvis_dragged_object != null)
 	{
 		fvis_dragged_object.x += fvis_dragged_inverse ? v_mousepos.x - x : x - v_mousepos.x;
 		fvis_dragged_object.y += fvis_dragged_inverse ? v_mousepos.y - y : y - v_mousepos.y;
-    fvis.dirty = fvis_dragged_object != fvis;
-    
+		fvis.dirty = fvis_dragged_object != fvis;
 	}
-  if (vis_tab == 3)
-  {
-    var id = fvis.id_under_mouse(x, y);
-    fvis.highlight(id);
-  }
+	/*
+	if (vis_tab == 3)
+	{
+		var id = fvis.id_under_mouse(x, y);
+		fvis.highlight(id);
+	}
+	*/
 	
 	v_mousepos = {x:x, y:y};
 }
 
 function v_mousedown(event)
 {
-	//console.log(event);
-	var br = v_canvas.getBoundingClientRect();
-	var x = event.clientX - br.left;
-	var y = event.clientY - br.top;
+	var x = event.x;
+	var y = event.y;
 	
 	if (vis_tab == 3)
 	{

@@ -2,21 +2,16 @@
  *                      Matter.js Extra Functions
  ***********************************************************************/
 
-// Pause or unpause the simulation
-Matter.Engine.pause = function(engine)
-{
-	if (engine.paused == true)
-	{
-		engine.paused = false;
-		engine.timing.timeScale = 1;
-	}
-	else
-	{
-		engine.paused = true;
-		engine.timing.timeScale = 0;
-	}
-};
-
+ // Override Matter.Body.create to correct texture offsets
+ Matter.Body.createOriginal = Matter.Body.create;
+ Matter.Body.create = function(options)
+ {
+	var r = Matter.Body.createOriginal(options);
+	r.render.sprite.xOffset =  0.5;
+	r.render.sprite.yOffset =  0.5;
+	return r;
+ };
+ 
 Matter.Body.setStyles = function(body, fillStyle, strokeStyle)
 {
 	body.render.fillStyle = fillStyle;
@@ -157,6 +152,177 @@ Matter.Body.drawAt = function(engine, body, context, x, y, size)
 			c.translate(-x, -y);
 		}
 	}
+};
+
+Matter.Runner.pause = function(runner)
+{
+  runner.isPaused = true;
+};
+
+Matter.Runner.unpause = function(runner)
+{
+  runner.isPaused = false;
+};
+
+// We have to override the default Matter.Runner.tick to allow us to pause the simulation,
+// but still do rendering through before/afterRender. Note the before/afterUpdate events
+// are not called while the runner is paused.
+Matter.Runner.tick = function(runner, engine, time)
+{
+  var timing = engine.timing,
+      correction = 1,
+      delta;
+
+  // create an event object
+  var event = {
+      timestamp: timing.timestamp
+  };
+
+  Matter.Events.trigger(runner, 'beforeTick', event);
+
+  if (runner.isFixed) {
+      // fixed timestep
+      delta = runner.delta;
+  } else {
+      // dynamic timestep based on wall clock between calls
+      delta = (time - runner.timePrev) || runner.delta;
+      runner.timePrev = time;
+
+      // optimistically filter delta over a few frames, to improve stability
+      runner.deltaHistory.push(delta);
+      runner.deltaHistory = runner.deltaHistory.slice(-runner.deltaSampleSize);
+      delta = Math.min.apply(null, runner.deltaHistory);
+      
+      // limit delta
+      delta = delta < runner.deltaMin ? runner.deltaMin : delta;
+      delta = delta > runner.deltaMax ? runner.deltaMax : delta;
+
+      // correction for delta
+      correction = delta / runner.delta;
+
+      // update engine timing object
+      runner.delta = delta;
+  }
+
+  // time correction for time scaling
+  if (runner.timeScalePrev !== 0)
+      correction *= timing.timeScale / runner.timeScalePrev;
+
+  if (timing.timeScale === 0)
+      correction = 0;
+
+  runner.timeScalePrev = timing.timeScale;
+  runner.correction = correction;
+
+  // fps counter
+  runner.frameCounter += 1;
+  if (time - runner.counterTimestamp >= 1000) {
+      runner.fps = runner.frameCounter * ((time - runner.counterTimestamp) / 1000);
+      runner.counterTimestamp = time;
+      runner.frameCounter = 0;
+  }
+
+  Matter.Events.trigger(runner, 'tick', event);
+
+  // if world has been modified, clear the render scene graph
+  if (engine.world.isModified 
+      && engine.render
+      && engine.render.controller
+      && engine.render.controller.clear) {
+      engine.render.controller.clear(engine.render);
+  }
+
+  // update
+  if (!runner.isPaused)
+  {
+    Matter.Events.trigger(runner, 'beforeUpdate', event);
+    Matter.Engine.update(engine, delta, correction);
+    Matter.Events.trigger(runner, 'afterUpdate', event);
+  }
+
+  // render
+  if (engine.render && engine.render.controller) {
+      Matter.Events.trigger(runner, 'beforeRender', event);
+
+      engine.render.controller.world(engine);
+
+      Matter.Events.trigger(runner, 'afterRender', event);
+  }
+
+  Matter.Events.trigger(runner, 'afterTick', event);
+};
+
+// We need to override this function to allow custom background rendering, and fix an issue
+// where world objects are drawn behind the spawn zone
+Matter.Render.world = function(engine) {
+	var render = engine.render,
+			world = engine.world,
+			context = render.context,
+			options = render.options,
+			allBodies = Matter.Composite.allBodies(world),
+			allConstraints = Matter.Composite.allConstraints(world),
+			bodies = [],
+			constraints = [],
+			i;
+
+	var event = {
+			timestamp: engine.timing.timestamp
+	};
+
+	Matter.Events.trigger(render, 'beforeRender', event);
+
+	// handle bounds
+	var boundsWidth = render.bounds.max.x - render.bounds.min.x,
+			boundsHeight = render.bounds.max.y - render.bounds.min.y,
+			boundsScaleX = boundsWidth / options.width,
+			boundsScaleY = boundsHeight / options.height;
+
+	// filter out bodies that are not in view
+	for (i = 0; i < allBodies.length; i++) {
+			var body = allBodies[i];
+			if (Matter.Bounds.overlaps(body.bounds, render.bounds))
+					bodies.push(body);
+	}
+
+	// filter out constraints that are not in view
+	for (i = 0; i < allConstraints.length; i++) {
+			var constraint = allConstraints[i],
+					bodyA = constraint.bodyA,
+					bodyB = constraint.bodyB,
+					pointAWorld = constraint.pointA,
+					pointBWorld = constraint.pointB;
+
+			if (bodyA) pointAWorld = Matter.Vector.add(bodyA.position, constraint.pointA);
+			if (bodyB) pointBWorld = Matter.Vector.add(bodyB.position, constraint.pointB);
+
+			if (!pointAWorld || !pointBWorld)
+					continue;
+
+			if (Matter.Bounds.contains(render.bounds, pointAWorld) || Matter.Bounds.contains(render.bounds, pointBWorld))
+					constraints.push(constraint);
+	}
+
+	// transform the view
+	context.scale(1 / boundsScaleX, 1 / boundsScaleY);
+	context.translate(-render.bounds.min.x, -render.bounds.min.y);
+	
+	Matter.Render.bodies(engine, bodies, context);
+
+	if (options.showBounds)
+			Matter.Render.bodyBounds(engine, bodies, context);
+	
+	if (options.showPositions)
+			Matter.Render.bodyPositions(engine, bodies, context);
+
+	if (options.showVelocity)
+			Matter.Render.bodyVelocity(engine, bodies, context);
+
+	Matter.Render.constraints(constraints, context);
+
+	// revert view transforms
+	context.setTransform(options.pixelRatio, 0, 0, options.pixelRatio, 0, 0);
+
+	Matter.Events.trigger(render, 'afterRender', event);
 };
 
 /***********************************************************************
@@ -384,6 +550,7 @@ canvas_button.prototype.draw = function()
 	ctx.font = opt.font;
 	ctx.textBaseline = 'top';
 	ctx.textAlign = 'left';
+	ctx.lineWidth = 1.5;
 	if (opt.enabled)
 		ctx.fillStyle = mouseOverButton ? opt.mouseoverFontColor : opt.enabledFontColor;
 	else

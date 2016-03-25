@@ -30,19 +30,6 @@ function pixiGetFontHeight(fontStyle)
 	return result;
 }
 
-function saveProperties(ctx, copy)
-{
-	copy = {};
-	for (var k in ctx)
-		copy[k] = ctx[k];
-}
-
-function restoreProperties(ctx, copy)
-{
-	for (var k in copy)
-		ctx[k] = copy[k];
-}
-
 //http://stackoverflow.com/questions/1255512/how-to-draw-a-rounded-rectangle-on-html-canvas
 CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
   if (w < 2 * r) r = w / 2;
@@ -60,12 +47,4 @@ CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
 function round(num, decimals)
 {
 	return +num.toFixed(decimals);
-}
-
-// Credit: http://stackoverflow.com/questions/18837735/check-if-image-exists-on-server-using-javascript
-function checkImage(imageSrc, good, bad) {
-    var img = new Image();
-    img.onload = good; 
-    img.onerror = bad;
-    img.src = imageSrc;
 }

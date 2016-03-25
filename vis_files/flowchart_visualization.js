@@ -14,8 +14,8 @@
 
 function flowchart_visualization()
 {
-  this.texth = 24;
-  this.spread = 16;
+  this.texth = 18;
+  this.spread = 10;
   this.dirty = false;
   this.snap = true;
   this.portkeys = {east:true, north:true, south:true, west:true};
@@ -209,9 +209,10 @@ flowchart_visualization.prototype.render = function()
     this.dirty = false;
   }
 
+  /* Draws graph vertices and open paths
   if (DEBUG && this.graph)
   {
-	var x, y;
+    var x, y;
     ctx.beginPath();
     ctx.strokeStyle = '#333333';
     
@@ -247,6 +248,7 @@ flowchart_visualization.prototype.render = function()
       }
     
   }
+  */
   
   ctx.font = this.texth + 'px monospace';
   for (id in this.nodes)
@@ -578,21 +580,25 @@ flowchart_visualization.prototype._edge_blocked = function(A, B)
   for (var id in this.nodes)
   {
     var n = this.nodes[id];
-    var inside_x = (A.x >= n.ixmin && B.x <= n.ixmax);
+    var xmin = n.ixmin - 3;
+    var xmax = n.ixmax + 3;
+    var ymin = n.iymin - 3;
+    var ymax = n.iymax + 3;
+    var inside_x = (A.x >= xmin && B.x <= xmax);
     if (inside_x)
     {
-      if (A.y < n.iymin && B.y > n.iymin) // Top edge
+      if (A.y < ymin && B.y > ymin) // Top edge
         return true;
-      if (A.y < n.iymax && B.y > n.iymax) // Bottom edge
+      if (A.y < ymax && B.y > ymax) // Bottom edge
         return true;
       
     }
-    var inside_y = (A.y >= n.iymin && B.y <= n.iymax);
+    var inside_y = (A.y >= ymin && B.y <= ymax);
     if (inside_y)
     {
-      if (A.x < n.ixmin && B.x > n.ixmin) // Left edge
+      if (A.x < xmin && B.x > xmin) // Left edge
         return true;
-      if (A.x < n.ixmax && B.x > n.ixmax) // Right edge
+      if (A.x < xmax && B.x > xmax) // Right edge
         return true;
     }
     if (inside_x && inside_y)
