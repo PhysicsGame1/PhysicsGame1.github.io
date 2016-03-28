@@ -58,98 +58,138 @@ Matter.Body.enableCollisions = function(body)
 	body.collisionFilter.mask = 0xFFFFFFFF;
 };
 
-Matter.Body.drawAt = function(engine, body, context, x, y, size)
+Matter.Render.bodies = function(engine, bodies, context, x, y, size)
 {
 	var c = context,
-		render = engine.render,
-		part,
-		i,k;	
-	// Calculate scale
-	var scale;
-	if (body.circleRadius)
-	{
-		scale = size / (2 * body.circleRadius);
-	}
-	else
-	{
-		// Calculate body bounds through vertices
-		// Note: Cannot use body.bounds as it does not give the correct results in negative coordinates
-		var max_width = 0;
-		for (i = 0; i < body.vertices.length; i++)
-		{
-			for (j = i+1; j < body.vertices.length; j++)
-			{
-				var v1 = body.vertices[i];
-				var v2 = body.vertices[j];
-				var dist = Math.pow(v1.x - v2.x, 2) + Math.pow(v1.y - v2.y, 2);
-				if (dist > max_width)
-					max_width = dist;
-			}
-		}
-		scale = size / Math.sqrt(max_width);
-	}
-	var bx = body.position.x;
-	var by = body.position.y;
-	
-	// handle compound parts
-	for (k = body.parts.length > 1 ? 1 : 0; k < body.parts.length; k++)
-	{
-		part = body.parts[k];
+			render = engine.render,
+			options = render.options,
+			body,
+			part,
+			i,k,
+			scale,bx,by;
 
-		if (part.render.sprite && part.render.sprite.texture)
+	if (size)
+	{	// If size is defined, then this is a callback from array visualization
+		// Assume only one body is passed as bodies[0]
+		body = bodies[0];
+		if (!body.array_vis_scale)
 		{
-			// part sprite
-			var sprite = part.render.sprite;
-			var texture = render.textures[sprite.texture];
-
-			c.translate(part.position.x - bx + x, part.position.y - by + y); 
-			c.rotate(part.angle);
-			c.scale(scale,scale);
-			
-			c.drawImage(
-				texture,
-				texture.width * -sprite.xOffset * sprite.xScale, 
-				texture.height * -sprite.yOffset * sprite.yScale, 
-				texture.width * sprite.xScale, 
-				texture.height * sprite.yScale
-			);
-
-			// revert translation, hopefully faster than save / restore
-			c.scale(1 / scale,1 / scale);
-			c.rotate(-part.angle);
-			c.translate(-(part.position.x - bx + x), -(part.position.y - by + y)); 
-			
-		} 
-		else
-		{
-			c.translate(x, y);
-			c.scale(scale,scale);
-			
-			// part polygon
-			if (part.circleRadius)
-			{
-				c.beginPath();
-				c.arc(part.position.x - bx, part.position.y - by, part.circleRadius, 0, 2 * Math.PI);
+			if (body.circleRadius)
+			{	// Optimization for circle bodies
+				body.array_vis_scale = size / (2 * body.circleRadius);
 			}
 			else
 			{
-				c.beginPath();
-				c.moveTo(part.vertices[0].x - bx, part.vertices[0].y - by);
-				for (var j = 1; j < part.vertices.length; j++)
+				// Calculate body bounds through vertices
+				// Note: Cannot use body.bounds as it does not give the correct results in negative coordinates
+				var max_width = 0;
+				for (i = 0; i < body.vertices.length; i++)
 				{
-					c.lineTo(part.vertices[j].x - bx, part.vertices[j].y - by);
+					for (k = i+1; k < body.vertices.length; k++)
+					{
+						var v1 = body.vertices[i];
+						var v2 = body.vertices[k];
+						var dist = Math.pow(v1.x - v2.x, 2) + Math.pow(v1.y - v2.y, 2);
+						if (dist > max_width)
+							max_width = dist;
+					}
 				}
-				c.closePath();
+				body.array_vis_scale = size / Math.sqrt(max_width);
 			}
+		}
+		scale = body.array_vis_scale;
+		bx = body.position.x;
+		by = body.position.y;
+	}
+	else
+	{
+		bx = by = x = y = 0;
+		scale = 1;
+	}
+	
+	for (i = 0; i < bodies.length; i++)
+	{
+		body = bodies[i];
 
-			c.fillStyle = part.render.fillStyle;
-			c.lineWidth = part.render.lineWidth;
-			c.strokeStyle = part.render.strokeStyle;
-			c.fill();
-			c.stroke();
-			
-			c.scale(1 / scale,1 / scale);
-			c.translate(-x, -y);
+		if (!body.render.visible && !size)
+			continue;
+
+		// handle compound parts
+		for (k = body.parts.length > 1 ? 1 : 0; k < body.parts.length; k++)
+		{
+			part = body.parts[k];
+
+			if (!part.render.visible && !size)
+				continue;
+
+			if (part.render.sprite && part.render.sprite.texture)
+			{
+				// part sprite
+				var sprite = part.render.sprite,
+						texture = render.textures[sprite.texture];
+				
+				if (!texture)
+				{
+					texture = render.textures[sprite.texture] = new Image();
+					texture.src = sprite.texture;
+				}
+
+				if (part.render.globalAlpha) 
+					c.globalAlpha = part.render.globalAlpha;
+
+				c.translate(part.position.x - bx + x, part.position.y - by + y); 
+				c.rotate(part.angle);
+				c.scale(scale,scale);
+
+				c.drawImage(
+						texture,
+						texture.width * -sprite.xOffset * sprite.xScale, 
+						texture.height * -sprite.yOffset * sprite.yScale, 
+						texture.width * sprite.xScale,
+						texture.height * sprite.yScale
+				);
+
+				// revert translation, hopefully faster than save / restore
+				c.scale(1 / scale,1 / scale);
+				c.rotate(-part.angle);
+				c.translate(-(part.position.x - bx + x), -(part.position.y - by + y));
+
+				c.globalAlpha = 1;
+			}
+			else
+			{
+				c.translate(x, y);
+				c.scale(scale,scale);
+				// part polygon
+				if (part.circleRadius)
+				{
+					c.beginPath();
+					c.arc(part.position.x - bx, part.position.y - by, part.circleRadius, 0, 2 * Math.PI);
+				}
+				else
+				{
+					c.beginPath();
+					c.moveTo(part.vertices[0].x - bx, part.vertices[0].y - by);
+					for (var j = 1; j < part.vertices.length; j++)
+					{
+							c.lineTo(part.vertices[j].x - bx, part.vertices[j].y - by);
+					}
+					c.closePath();
+				}
+
+				if (options.showSleeping && body.isSleeping) {
+						c.fillStyle = Matter.Common.shadeColor(part.render.fillStyle, 50);
+				} else {
+						c.fillStyle = part.render.fillStyle;
+				}
+
+				c.lineWidth = part.render.lineWidth;
+				c.strokeStyle = part.render.strokeStyle;
+				c.fill();
+				c.stroke();
+				c.scale(1 / scale,1 / scale);
+				c.translate(-x, -y);
+			}
 		}
 	}
 };
@@ -490,6 +530,18 @@ canvas_button.prototype.mouseup = function()
 {
 	if (this.coordsInSelf(this.mouse.absolute) &&
 		this.options.enabled && this.options.visible)
+	{
+		this.onclick();
+		return true;
+	}
+	return false;
+};
+
+canvas_button.prototype.keypress = function(key)
+{
+	if (this.options.enabled && this.options.visible &&
+		(((typeof this.options.hotkey == "object") && this.options.hotkey.test(key))	// hotkey is regex
+		|| this.options.hotkey == key))	//hotkey is string
 	{
 		this.onclick();
 		return true;

@@ -46,7 +46,7 @@ function v_init()
 // Callback for array visualization
 function draw_body(opt, ctx, x, y, sz)
 {
-	Matter.Body.drawAt(engine, opt.body, ctx, x + sz/2, y + sz/2, sz);
+	Matter.Render.bodies(engine, [opt.body], ctx, x + sz/2, y + sz/2, sz);
 }
 
 

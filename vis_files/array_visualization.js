@@ -29,15 +29,11 @@ array_visualization.prototype.removeByIndex = function (index)
 		this.index = this.array.length-1;
 };
 
-// filter_fn is a function reference
-// filter_fn(element) should return true if this element should be removed
-array_visualization.prototype.removeByFn = function (filter_fn)
+// callback is a function reference
+// callback(element) should return true if this element should be kept
+array_visualization.prototype.filter = function (callback)
 {
-	var tmp = [];
-	for(var i in this.array)
-		if (!filter_fn(this.array[i]))
-			tmp.push(this.array[i]);
-	this.array = tmp;
+	this.array = this.array.filter(callback);
 };
 
 array_visualization.prototype.reset = function ()

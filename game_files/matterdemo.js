@@ -2,15 +2,17 @@
  *                      Global definitions
  ***********************************************************************/
 var DEBUG = true;		// Set to true to enable various features for testing
-var START_LEVEL = 10;	// This level will be run when the game starts
+var START_LEVEL = DEBUG ? 10 : 0;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
 
-//global variable holding objects for level	
-var level_bodies = [];
-//global variable holding powerups
-var powerup_bodies = [];
+// Global variable holding objects for level	
+var level_bodies;
+// Global variable holding powerups
+var powerup_bodies;
+// Global variable holding all balls
+var ball_bodies;
 
 var Engine = Matter.Engine,								//manages updating and rendering canvas
 		World = Matter.World,							//composite of entire canvas
@@ -20,7 +22,8 @@ var Engine = Matter.Engine,								//manages updating and rendering canvas
 		Composite = Matter.Composite,					//to clear constraints from the ball before fired and modify composites (remove doesn't work?!)
 		Composites = Matter.Composites,					//used to build composites (combining lots of shapes into structures like walls etc)
 		Vector = Matter.Vector,							//for vector algebra
-		Constraint = Matter.Constraint;					//for chaining object's together with composites,
+		Constraint = Matter.Constraint,					//for chaining object's together with composites,
+		Common = Matter.Common;
 	
 
 // Set up renderer and engine options (see link for more options)
@@ -57,8 +60,7 @@ var STATE_LEVEL_SELECT_MENU = 610;
 var current_state;
 var paused_state;
 
-var powerup_enabled = false;
-var powerup_create_fn = function() {};
+var powerup_type;
 
 // Contains functions that help create each level, indexed by level
 var level_create_fns = [];
@@ -70,24 +72,21 @@ var target;
 // Matter.Runner object that tracks framerate
 var fps_runner = Matter.Runner.create();
 
-// Most recent mouse position from mosemove function
-var mousePos = {x:0, y:0};
+// Most recent mouse positions in world and canvas coordinates
+var mousePosWorld = {x:0, y:0};
+var mousePosCanvas = {x:0, y:0};
 
 // Current level
 var current_level = START_LEVEL;
 
-// This function creates the currently selected ball type
-var ball_create_fn; set_steel();
+// The currently selected ball type
+var ball_type = 'steel_ball';
 
 // Variable to control the camera, see: matterjs_camera.js
 var camera = new matterjs_camera(engine);
 
 // Variable to control the ball spawn zone
 var spawn_zone = {x:9001, y:9001, r:100, max_pull:200, divisor:50};
-
-//Teleport Global variable
-var teleport_BLUE = false;
-var teleport_ORANGE = false;
 
 // Variable to hold necessary data to generate the background starfield
 // Note: Starfield algorithm from http://freespace.virgin.net/hugo.elias/graphics/x_stars.htm
@@ -96,12 +95,12 @@ starfield.xmin = -3000;
 starfield.xrange = 6000;
 starfield.ymin = -1500;
 starfield.yrange = 3000;
-starfield.zmin = 10;
+starfield.zmin = 15;
 starfield.zrange = 900;
 starfield.vmin = 1;
 starfield.vrange = 15;
-starfield.vmultiplier = 0.002;
-for(var i = 0; i < 3000; i++)
+starfield.vmultiplier = 2;
+for(var i = 0; i < 1500; i++)
 {
 	starfield.push({
 		x: Math.random() * starfield.xrange + starfield.xmin,
@@ -114,9 +113,9 @@ for(var i = 0; i < 3000; i++)
 		prev_y: 0
 	});
 }
-for(i = 0; i < 500; i++)
+for(i = 0; i < 100; i++)
 	tick_starfield();
-
+starfield.vmultiplier = 0.002;
 /*********************
 	Analytics Variables
 **********************/
@@ -131,6 +130,7 @@ var time_vis_switch = Date.now();
 /***********************************************************************
  *                      Buttons
  ***********************************************************************/
+
 var buttons = {};
 
 buttons['Pause'] = new canvas_button(canvas, "Pause", 5, 5, function ()
@@ -138,13 +138,13 @@ buttons['Pause'] = new canvas_button(canvas, "Pause", 5, 5, function ()
   Matter.Runner.pause(fps_runner);
 	paused_state = current_state;
 	current_state = STATE_PAUSE_MENU;
-});
+}, {hotkey:'KeyP'});
 
 buttons['Debug'] = new canvas_button(canvas, "Debug", 5, 40, function ()
 {
 	DEBUG = !DEBUG;
 	console.log('DEBUG = ' + DEBUG);
-});
+}, {hotkey:'KeyD'});
 
 var ball_madness = false;
 buttons['Balls'] = new canvas_button(canvas, "Balls", 5, 75, function ()
@@ -180,38 +180,47 @@ buttons['Textures'] = new canvas_button(canvas, "Textures", 5, 110, function ()
 	}
 }, {textures:true});
 
+buttons['Gravity'] = new canvas_button(canvas, "Gravity", 5, 145, function ()
+{
+	engine.world.gravity.y = !engine.world.gravity.y;
+	for(var i in level_bodies)
+		level_bodies[i].frictionAir = engine.world.gravity.y * 0.01;
+	templates['iron_ball'].frictionAir = engine.world.gravity.y * 0.01;
+	templates['steel_ball'].frictionAir = engine.world.gravity.y * 0.01;
+	templates['rubber_ball'].frictionAir = engine.world.gravity.y * 0.01;
+});
+
 buttons['Start'] = new canvas_button(canvas, "Start", canvas.width / 2, canvas.height / 2 + 50, function ()
 {
 	run_level(START_LEVEL);
-}, {centered:true, font:'bold 28px monospace'});
+}, {centered:true, font:'bold 28px monospace', hotkey:'KeyS'});
 
 buttons['Restart'] = new canvas_button(canvas, 'Restart', canvas.width / 2, canvas.height / 2 - 50, function ()
 {
 	run_level(current_level);
-}, {centered:true, font:'bold 24px monospace'});
+}, {centered:true, font:'bold 24px monospace', hotkey:'KeyR'});
 
 buttons['Level Select'] = new canvas_button(canvas, 'Level Select', canvas.width / 2, canvas.height / 2, function ()
 {
 	current_state = STATE_LEVEL_SELECT_MENU;
-}, {centered:true, font:'bold 24px monospace'});
+}, {centered:true, font:'bold 24px monospace', hotkey:'KeyL'});
 
 buttons['Quit'] = new canvas_button(canvas, 'Quit', canvas.width / 2, canvas.height / 2 + 50, function ()
 {
 	reset_engine();
 	current_state = STATE_START_MENU;
-}, {centered:true, font:'bold 24px monospace'});
+}, {centered:true, font:'bold 24px monospace', hotkey:'KeyQ'});
 
 buttons['Cancel'] = new canvas_button(canvas, 'Cancel', canvas.width / 2, canvas.height / 2 + 100, function ()
 {
   Matter.Runner.unpause(fps_runner);
 	current_state = paused_state;
-}, {centered:true, font:'bold 24px monospace'});
+}, {centered:true, font:'bold 24px monospace', hotkey:'KeyC'});
 
 buttons['Main Menu'] = new canvas_button(canvas, "Main Menu", 5, 5, function ()
 {
 	current_state = STATE_PAUSE_MENU;
 });
-
 
 
 /*
@@ -249,6 +258,108 @@ function generate_level_buttons(num_levels)
 //buttons['Set Iron'] = new canvas_button(canvas, 'Set Iron', canvas.width / 2, 30, set_iron, {centered:true, image:'images/iron_ball.png'});
 
 /***********************************************************************
+ *                      Body Templates
+ ***********************************************************************/
+var templates = {};
+
+// Contains the variables needed to fool Body.redraw into actually drawing something
+templates['fake_body'] = {
+	angle:0,
+	render:{
+		globalAlpha:1,
+		visible:true,
+		sprite:{
+			xScale:1,
+			yScale:1,
+			xOffset:0.5,
+			yOffset:0.5,
+			texture:'images/ball.png'
+	}}};
+templates['fake_body'].parts = [templates['fake_body']];
+
+// Base template for all balls
+templates['ball'] = {
+	name:"ball",
+	timeScale: 0,
+	frictionAir: 0.01,
+	collisionFilter:{
+		mask:0
+	},
+	render:{
+		sprite:{
+			xScale:0.5,
+			yScale:0.5
+}}};
+
+// All other balls are just extensions of templates['ball']
+templates['steel_ball'] = Common.extend(Common.clone(templates['ball'], true), {
+	density: 0.07,
+	restitution: 0.3,
+	render: { sprite: { texture: 'images/steel_ball.png' }}
+});
+
+templates['iron_ball'] = Common.extend(Common.clone(templates['ball'], true), {
+	density: 0.09,
+	restitution: 0.4,
+	render: { sprite: { texture: 'images/iron_ball.png' }}
+});
+
+templates['rubber_ball'] = Common.extend(Common.clone(templates['ball'], true), {
+	density: 0.05,
+	restitution: 0.9,
+	render: { sprite: { texture: 'images/rubber_ball.png' }}
+});
+
+templates['powerup'] = {
+	used: false,
+	isStatic: true,
+	collisionFilter:{
+		mask:0
+	},
+	render:{
+		sprite:{
+			xScale:0.4,
+			yScale:0.4
+}}};
+
+templates['powerup_force'] = Common.extend(Common.clone(templates['powerup'], true), {
+	name:'powerup_force',
+	render: { sprite: { texture: 'images/powerup_force.png' }}
+});
+
+templates['powerup_teleport_orange'] = Common.extend(Common.clone(templates['powerup'], true), {
+	name:'powerup_teleport_orange',
+	render: { sprite: { texture: 'images/powerup_teleport_orange.png' }}
+});
+
+templates['powerup_teleport_blue'] = Common.extend(Common.clone(templates['powerup'], true), {
+	name:'powerup_teleport_blue',
+	render: { sprite: { texture: 'images/powerup_teleport_blue.png' }}
+});
+
+	
+function circle_body_from_template(name, pos, radius)
+{
+	var b = Bodies.circle(pos.x, pos.y, radius, templates[name]);
+	Body.updateInertia(b);
+	World.add(engine.world, b);
+	level_bodies.push(b);
+	avis.insert({drawfn:draw_body, body:b});
+	return b;
+}
+
+// Warning: Only use with templates that define textures
+function draw_body_from_template(name, pos, alpha)
+{
+	templates['fake_body'].render.globalAlpha = alpha || 1;
+	templates['fake_body'].position = pos;
+	Common.extend(templates['fake_body'].render.sprite, templates[name].render.sprite);
+	Matter.Body.redraw(engine, templates['fake_body']);
+}
+
+
+
+/***********************************************************************
  *                      Matter.js events
  ***********************************************************************/
 // Set up callbacks for event handling
@@ -279,7 +390,8 @@ function mouseevent(event)
   var game_bounds = canvas.getBoundingClientRect();
   
   var vis_relative = {x:mx-vis_bounds.left, y:my-vis_bounds.top};
-  mousePos = {x:mx-game_bounds.left, y:my-game_bounds.top}; // matterdemo global
+  mousePosCanvas = {x:mx-game_bounds.left, y:my-game_bounds.top}; // matterdemo global
+	mousePosWorld = canvasToWorldPt(mousePosCanvas);
   
   
   if (event.type == 'mousedown')
@@ -296,7 +408,7 @@ function mouseevent(event)
     else if (mx >= game_bounds.left && mx <= game_bounds.right && my >= game_bounds.top && my <= game_bounds.bottom)
     {
       event.preventDefault();
-      mousedown(mousePos);
+      mousedown(mousePosCanvas);
       mouseevent.lastClick = 'game';
     }
   }
@@ -310,7 +422,7 @@ function mouseevent(event)
     if (mouseevent.lastClick == 'visualization')
       v_mouseup(vis_relative);
     else if (mouseevent.lastClick == 'game')
-      mouseup(mousePos);
+      mouseup(mousePosCanvas);
     mouseevent.lastClick = '';
   }
   //console.log(event.type);
@@ -320,7 +432,7 @@ function beforeUpdate(event)
 {	
 	tick_starfield();
 	
-	if(ball && powerup_enabled)
+	if(is_playing())
 		checkPowerupHit(); //must be called after game is set up
 		
 	if(current_level == 7)
@@ -332,69 +444,42 @@ function beforeUpdate(event)
 //just in case make sure though. . .
 function checkPowerupHit()
 {
-	var powerup;
-	for(var i = 0; i < powerup_bodies.length; ++i)
+	for(var i in powerup_bodies)
 	{
-		powerup = powerup_bodies[i];
-		
-		var vec = Vector.create(ball.position.x - powerup.position.x, ball.position.y - powerup.position.y);
-		var distanceToClick = Vector.magnitude(vec);
-		//alert(distanceToClick);	
-		//alert(worldToCanvasRatio);
-		var factor = 4;
-		var radius = powerup.circleRadius*factor; //this is diameter of every powerup
-	//	alert(distanceToClick);
-	//console.log("POWERUP = ", powerup.position);
-	
-	    //other possible solution is to use Matter.SAT.collision
-		if (distanceToClick <= radius) //powerup hits LATEST ball created
+		var powerup = powerup_bodies[i];
+		for(var k in ball_bodies)
 		{
-			//alert("FOUND POWERUP");
-			if(powerup.name=="powerup_force"){
-				var netF = 2;
-				var force = Vector.create(netF*Math.sin(powerup.angle), -netF*Math.cos(powerup.angle));
-				//console.log("FORCE ANGLE = ", 180*powerup.angle/Math.PI);
-				Body.applyForce(ball, ball.position, force);
-				Composite.remove(engine.world, powerup, true);
-				powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
-				powerup_bodies.pop(); //remove duplicate at end
-				avis.removeByFn(function(o) { return o.body.name == 'powerup_force'; });
-			}
-			else if(powerup.name=="powerup_teleport_blue"){
-				if(teleport_ORANGE){
-					
-					var deltax = -(teleport_BLUE.position.x - teleport_ORANGE.position.x);
-					var deltay = -(teleport_BLUE.position.y - teleport_ORANGE.position.y);
-					Body.translate(ball, {x:deltax,y:deltay});
-					Composite.remove(engine.world, powerup, true);
-					powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
-					powerup_bodies.pop(); //remove duplicate at end
-					avis.removeByFn(function(o) { return o.body.name == 'powerup_teleport_blue'; });
-				}
+			if (powerup.used)	
+				break; // In case a linked teleport is used before reaching it in the loop
 				
-			}
-			else if(powerup.name=="powerup_teleport_orange"){
-				if(teleport_BLUE){
-					
-					Composite.remove(engine.world, powerup, true);
-					powerup_bodies[i] = powerup_bodies[powerup_bodies.length-1]; //overwrite current powerup with end powerup
-					powerup_bodies.pop(); //remove duplicate at end
-					teleport_ORANGE= false;
-					teleport_BLUE = false;
-					avis.removeByFn(function(o) { return o.body.name == 'powerup_teleport_orange'; });
+			var ball = ball_bodies[k];
+			var vec = Vector.sub(ball.position, powerup.position);
+			if (Vector.magnitude(vec) < (powerup.circleRadius + ball.circleRadius))
+			{	// A ball touched a powerup
+				if (powerup.name=="powerup_force")
+				{
+					var netF = 2;
+					var force = Vector.create(netF*Math.sin(powerup.angle), -netF*Math.cos(powerup.angle));
+					Body.applyForce(ball, ball.position, force);
 				}
-				
-				//alert("teleport_Blue_x = "+ teleport_BLUE.position.x);
-			}	
-		
-			//remove powerup once triggered
-			//remove from powerup_bodies and from the world?
-			//console.log(powerup.type);
-			//alert(engine.world);
-			
-			
+				else if (powerup.name=="powerup_teleport_blue" || powerup.name=="powerup_teleport_orange")
+				{
+					if (!powerup.link)
+						continue;  // This teleport has not yet been linked
+					Body.setPosition(ball, powerup.link.position);
+					// Remove the linked teleport
+					powerup.link.used = true;
+					Composite.remove(engine.world, powerup.link);
+				}
+				powerup.used = true; // Mark for later deletion (cannot delete in a for loop)
+				Composite.remove(engine.world, powerup);
+			}
 		}
 	}
+	// Remove powerups that were used from all arrays
+	avis.filter(function(e) { return !(e.body.used); });
+	powerup_bodies = powerup_bodies.filter(function(e) { return !(e.used); });
+	level_bodies = level_bodies.filter(function(e) { return !(e.used); });
 }
 
 function checkChrisLevelOne()
@@ -437,9 +522,9 @@ function afterUpdate(event)
 	if (is_ready_to_fire() && ball_madness && fps_runner.frameCounter % 6 == 0)
 	{
 		var sc = current_state;
-		ball_create_fn(spawn_zone);
+		ball_bodies.push(ball = circle_body_from_template(ball_type, spawn_zone, 10));
 		current_state = STATE_MOUSEDOWN;
-		mouseup(mousePos);
+		mouseup(mousePosCanvas);
 		current_state = sc;
 	}
 }
@@ -465,7 +550,7 @@ function afterCollision(event)
 			var _starfield_speedup = function() {
 				if (current_state == STATE_TARGET_HIT)
 				{
-					camera.moveZoom(DEBUG ? -40 : -4);
+					camera.moveZoom(DEBUG ? -80 : -8);
 					starfield.vmultiplier += DEBUG ? 0.2 : 0.02;
 					setTimeout(_starfield_speedup, 15);
 				}
@@ -492,9 +577,9 @@ function beforeRender(event)
 	buttons['Cancel'].options.visible = current_state == STATE_PAUSE_MENU;
 	buttons['Main Menu'].options.visible = current_state == STATE_LEVEL_SELECT_MENU;
 	buttons['Textures'].options.visible = is_ready_to_fire() && DEBUG;
+	buttons['Gravity'].options.visible = is_ready_to_fire() && DEBUG;
 		
-	var i;
-	for(i = 0; i < level_create_fns.length; i++)
+	for(var i = 0; i < level_create_fns.length; i++)
 	{
 		var options = buttons['Level '+i].options;
 		options.visible = current_state == STATE_LEVEL_SELECT_MENU;
@@ -531,12 +616,12 @@ function beforeRender(event)
 
 function afterRender(event)
 {
+	var i;
 	if (current_state == STATE_MOUSEDOWN)
 	{
 		// Determine the force with which the ball would be launched from here
-		var mouseDist = Vector.sub(canvasToWorldPt(mousePos), ball.position);
-		var angle = Vector.angle(canvasToWorldPt(mousePos), ball.position); //angle between PI and -PI relative to 0 x-axis
-		var netF = Math.min(Vector.magnitude(mouseDist), spawn_zone.max_pull);
+		var angle = Vector.angle(mousePosWorld, ball.position); //angle between PI and -PI relative to 0 x-axis
+		var netF = Math.min(distance_from_mouse(ball.position), spawn_zone.max_pull);
 		var ballpos;
 		
 		if (DEBUG)
@@ -549,7 +634,7 @@ function afterRender(event)
 			ctx.strokeStyle = 'yellow';
 			ballpos = worldToCanvasPt(ball.position);
 			ctx.beginPath(); ctx.moveTo(ballpos.x, ballpos.y);
-			for(var i in futurePositions)
+			for(i in futurePositions)
 			{
 				var tmp = worldToCanvasPt(futurePositions[i]);
 				ctx.lineTo(tmp.x, tmp.y);
@@ -565,24 +650,11 @@ function afterRender(event)
 		}
 	}
 	
-	if (current_state == STATE_TARGET_HIT)
-	{
-		draw_textbox("Level Complete! The next level will begin soon.", canvas.width/2, canvas.height/2, {
-			font:'24px Arial',
-			backColor:'#009900',
-			outlineColor:'yellow',
-			x_margin:30,
-			y_margin:20
-		});
-	}
-	
 	if (DEBUG && is_playing())
 	{
-		var cpt = mousePos;
-		var wpt = canvasToWorldPt(cpt);
 		draw_textbox('   FPS:' + round(fps_runner.fps, 2) +
-				'\n World:' + round(wpt.x,2) + ',' + round(wpt.y,2) +
-				'\nCanvas:' + round(cpt.x,2) + ',' + round(cpt.y,2) +
+				'\n World:' + round(mousePosWorld.x,2) + ',' + round(mousePosWorld.y,2) +
+				'\nCanvas:' + round(mousePosCanvas.x,2) + ',' + round(mousePosCanvas.y,2) +
 				'\n Level:' + current_level
 				, canvas.width - 210, 10  // x, y
 				, { font:'16px monospace', 
@@ -592,6 +664,40 @@ function afterRender(event)
 						textFrontColor: 'white',
 						width: 200
 						});
+	}
+	
+	// Draw shadow ball if necessary
+	if (is_ready_to_fire() && distance_from_mouse(spawn_zone) <= spawn_zone.r)
+		draw_body_from_template(ball_type, mousePosWorld, 0.65);
+	
+	if (placing_powerup() && distance_from_mouse(spawn_zone) > spawn_zone.r)
+		draw_body_from_template(powerup_type, mousePosWorld, 0.65);
+	
+	if (is_playing())
+	{ // Draw lines between linked teleports
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = '#bbbbbb';
+		ctx.beginPath();
+		var orange_pos, blue_pos;
+		for(i in powerup_bodies)
+		{
+			var powerup = powerup_bodies[i];
+			if (powerup.name == 'powerup_teleport_blue')
+			{
+				blue_pos = worldToCanvasPt(powerup.position);
+				ctx.moveTo(blue_pos.x, blue_pos.y);
+				if (powerup.link)
+				{
+					orange_pos = worldToCanvasPt(powerup.link.position);
+				}
+				else if (current_state == STATE_POWERUP && powerup_type == 'powerup_teleport_orange')
+				{	// User is currently placing an orange teleport, but it is not in the array so draw the link here
+					orange_pos = mousePosCanvas;
+				}
+				ctx.lineTo(orange_pos.x, orange_pos.y);
+			}
+		}
+		ctx.stroke();
 	}
 	
 	if (is_in_menu())
@@ -610,8 +716,8 @@ function afterRender(event)
     }    
 	}
 	
-	for (var k in buttons)
-		buttons[k].draw();
+	for (i in buttons)
+		buttons[i].draw();
 	
 	// Run visualization callback
 	v_updateframe();
@@ -619,60 +725,49 @@ function afterRender(event)
 
 function mousedown(event)
 {
-	var wpos = canvasToWorldPt(mousePos);
+	if (is_in_menu())
+		return;
 	
-	//alert(powerup_bodies.length);
 	for(var i = 0; i < powerup_bodies.length; ++i)
 	{	
 		var powerup = powerup_bodies[i];
 		//check for click on powerup
 		if(powerup.name == "powerup_force")
 		{
-			//alert("HERE");
-			var vec = Vector.create(wpos.x - powerup.position.x, wpos.y - powerup.position.y);
-			var distanceToClick = Vector.magnitude(vec);
-			//alert(distanceToClick);	
-			var radius = powerup.circleRadius*2; //this is diameter of every powerup
-		//	alert(distanceToClick);
-			if (distanceToClick <= radius) //mouse slick is inside
+			if (distance_from_mouse(powerup.position) <= powerup.circleRadius) //mouse click is inside
 			{
-				//var mouseDist = Vector.sub(canvasToWorldPt(event.mouse.position), powerup.position);
 				var offset = Math.PI*0.5; //offset for force powerup to 0 degrees right instead of up
-				var angle = -offset + Vector.angle(wpos, powerup.position); //angle between PI and -PI relative to 0 x-axis
-				var test = (Math.PI*180/angle)%360;
-				/*
-				if(test < 0)
-					test += 360;
-				console.log("ANGLE = ", test);
-				*/
+				var angle = -offset + Vector.angle(mousePosWorld, powerup.position); //angle between PI and -PI relative to 0 x-axis
 				Body.setAngle(powerup, angle);
 			}
 		}
 	}
 	
-
-	
-	var dx,dy;
 	//check to see if they want to place a powerup
-	if(current_state == STATE_POWERUP)
+	if(placing_powerup() && distance_from_mouse(spawn_zone) > spawn_zone.r)
 	{
-		dx = wpos.x - spawn_zone.x;
-		dy = wpos.y - spawn_zone.y;
-		if (Math.sqrt(dx*dx + dy*dy) <= spawn_zone.r) //don't place powerup in spawn zone
+		console.log('create: ' + powerup_type);
+		powerup_bodies.push(circle_body_from_template(powerup_type, mousePosWorld, 22.4));
+		if (powerup_type == 'powerup_teleport_blue')
+		{	// Place orange next. Stay in powerup state.
+			powerup_type = 'powerup_teleport_orange';
 			return;
-		powerup_create_fn(wpos);
+		}
+		if (powerup_type == 'powerup_teleport_orange')
+		{ // Link up the two teleports
+			var blue = powerup_bodies[powerup_bodies.length-2];
+			var orange = powerup_bodies[powerup_bodies.length-1];
+			blue.link = orange;
+			orange.link = blue;
+		}
 		current_state = STATE_MOUSEUP;
 	}
 	
-	if (is_ready_to_fire())
+	// Check placing a ball
+	if (is_ready_to_fire() && distance_from_mouse(spawn_zone) < spawn_zone.r)
 	{
-		// Check for click in spawn zone
-		dx = wpos.x - spawn_zone.x;
-		dy = wpos.y - spawn_zone.y;
-		if (Math.sqrt(dx*dx + dy*dy) > spawn_zone.r)
-			return;
 		// Spawn a ball
-		ball_create_fn(wpos);
+		ball_bodies.push(ball = circle_body_from_template(ball_type, mousePosWorld, 10));
 		balls_used++;
 		current_state = STATE_MOUSEDOWN;
 		fvis.highlight('GETFORCE');
@@ -683,10 +778,8 @@ function mouseup(event)
 {
 	if (current_state == STATE_MOUSEDOWN)
 	{
-		var mouseDist = Vector.sub(canvasToWorldPt(mousePos), ball.position);
-
-		var angle = Vector.angle(canvasToWorldPt(mousePos), ball.position); //angle between PI and -PI relative to 0 x-axis
-		var netF = Math.min(Vector.magnitude(mouseDist), spawn_zone.max_pull) / spawn_zone.divisor;
+		var angle = Vector.angle(mousePosWorld, ball.position); //angle between PI and -PI relative to 0 x-axis
+		var netF = Math.min(distance_from_mouse(ball.position), spawn_zone.max_pull) / spawn_zone.divisor;
 		var force = Vector.create(netF*Math.cos(angle), netF*Math.sin(angle));
 		ball.timeScale = 1;
 		Body.applyForce(ball, ball.position, force);
@@ -719,6 +812,11 @@ function keydown(event)
 function keyup(event)
 {
 	console.log(event.code + ' pressed.');
+	for (var k in buttons)
+	{
+		if (buttons[k].keypress(event.code))
+			return;
+	}
 }
 
 function mousewheel(event)
@@ -741,7 +839,6 @@ function windowresize()
 /***********************************************************************
  *                      Level Creation
  ***********************************************************************/
- var worldToCanvasRatio = 0;
 function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon, xmin, xmax, ymin, ymax)
 { // x coordinate of target,  y coordinate of target, x coordinate of cannon,  y coordinate of cannon,
 	if (typeof xmin === 'undefined') xmin = 0;
@@ -817,7 +914,6 @@ level_create_fns.push( function(worldObjects) {	 // level 1
 	create_obstacle(worldObjects, 600, 160, 30, 90);
 	create_obstacle(worldObjects, 600, 300, 60, 80);
 	create_obstacle(worldObjects, 600, 300, 60, 80);
-	worldToCanvasRatio = 1; //get scaling factor for collision detection
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 2
@@ -827,14 +923,12 @@ level_create_fns.push( function(worldObjects) {	 // level 2
 	create_obstacle(worldObjects, 270, 100, 20, 70);
 	create_obstacle(worldObjects, 300, 400, 30, 90);
 	create_obstacle(worldObjects, 600, 100, 60, 40);
-	worldToCanvasRatio = 1; //get scaling factor for collision detection
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 3
 	create_common(worldObjects, 640, 275, 60, 540);
 	create_obstacle(worldObjects, 600, 100, 40, 400);
 	create_obstacle(worldObjects, 640, 295, 40, 10);
-	worldToCanvasRatio = 1; //get scaling factor for collision detection
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 4
@@ -846,8 +940,6 @@ level_create_fns.push( function(worldObjects) {	 // level 4
 	create_obstacle(worldObjects, -370, 120, 300, 70);
 	create_obstacle(worldObjects, -270, -100, 150, 150);
 	create_obstacle(worldObjects, 840, 525, 30, 150);
-	worldToCanvasRatio = 4; //get scaling factor for collision detection (2*Area * 2*Area / Area) = 4
-
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 5
@@ -859,8 +951,6 @@ level_create_fns.push( function(worldObjects) {	 // level 5
 	create_obstacle(worldObjects, -370, 120, 150, 70);
 	create_obstacle(worldObjects, -270, -100, 60, 100);
 	create_obstacle(worldObjects, 640, 525, 50, 70);
-	worldToCanvasRatio = 4; //get scaling factor for collision detection
-
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 6
@@ -874,15 +964,11 @@ level_create_fns.push( function(worldObjects) {	 // level 6
 		//return Bodies.rectangle(x, y, 20, 20, { name:"stack", density: 0.02});
 	});
 	worldObjects.push(stack);
-	
-		
 
 	var stack1 = Composites.stack(400, 100, 2, 8, 5, 0, function(x, y) {
 		return Bodies.rectangle(x, y, 20, 20, {name:"stack1", density: 0.02, render:{sprite:{ texture: texture, xScale:.5, yScale:.5}}});
 	});
 	worldObjects.push(stack1);
-	worldToCanvasRatio = 4; //get scaling factor for collision detection
-
 });
 
 level_create_fns.push( function(worldObjects) {	 // Chris level 7
@@ -904,7 +990,6 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 	worldObjects.push(bar);
 	worldObjects.push(bar2);
 	worldObjects.push(circleStack);
-	worldToCanvasRatio = 1; //get scaling factor for collision detection
 });
 
 level_create_fns.push( function(worldObjects) {	 // Chris level 8
@@ -926,15 +1011,11 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 8
 	secondC.name="secondC";
 	
 	worldObjects.push(circleStack, bar, bar2, firstC, secondC, platform);
-	worldToCanvasRatio = 1; //get scaling factor for collision detection
-
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 9
 	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 640, 0, 140, 1600);
-	worldToCanvasRatio = 4; //get scaling factor for collision detection
-	
+	create_obstacle(worldObjects, 640, 0, 140, 1600);	
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 10
@@ -956,135 +1037,27 @@ level_create_fns.push( function(worldObjects) {	 // level 10
 	create_obstacle(worldObjects, 1130, 565, 20, 50);
 	create_obstacle(worldObjects, 1075, 540, 90, 10);
 	target.mass = 40;
+	Matter.Body.updateInertia(target);
 });
 
 /***********************************************************************
  *                      Onclick Buttons
  ***********************************************************************/
-function ball_create_common(pos, restitution, density, texture)
+function set_powerup_type(t)
 {
-		ball = Bodies.circle(pos.x, pos.y, 10, {
-			name:"ball",
-			timeScale: 0,
-			density: density,
-			restitution: restitution,
-			render:{
-				sprite:{texture: texture,
-					xScale:0.5,
-					yScale:0.5
-			}}});
-	
-	Body.updateInertia(ball);
-	Body.disableCollisions(ball);
-	World.add(engine.world, ball);
-	level_bodies.push(ball);
-	avis.insert({drawfn:draw_body, body:ball});
+	if (is_playing())
+	{
+		powerup_type = t;
+		current_state = STATE_POWERUP;
+	}
+}
+
+function set_ball_type(t)
+{
+	if (is_playing())
+		ball_type = t;
 }
  
-function set_iron()
-{
-	ball_create_fn = function(pos)
-	{
-		ball_create_common(pos, 0.4, 0.09, 'images/iron_ball.png');
-	};
-}
-
-function set_steel()
-{
-	ball_create_fn = function(pos)
-	{
-		ball_create_common(pos, 0.3, 0.07, 'images/steel_ball.png');
-	};
-}
-
-function set_rubber()
-{
-	ball_create_fn = function(pos)
-	{
-		ball_create_common(pos, 0.9, 0.05, 'images/rubber_ball.png');
-	};
-}
- 
-
-//icon from: https://cdn2.iconfinder.com/data/icons/interface-6/60/power_arrow_up-512.png
-function set_powerupforce()
-{
-	current_state = STATE_POWERUP;
-	powerup_enabled = true;
-	powerup_create_fn = function(pos) //create function to call powerup and place at pos
-	{
-		var texture = "images/powerupforce.png";
-		var powerup = Bodies.circle(pos.x, pos.y, 25.6, {
-			name:"powerup_force",
-			angle: 0, //zero degrees is up for some reason
-			isStatic: true,
-			render:{
-				sprite:{texture: texture,
-					xScale:0.1,
-					yScale:0.1
-			}}
-		});
-		//console.log("MY ANGLE = ", 180*powerup.angle/Math.PI);
-		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
-		World.add(engine.world, powerup);
-		powerup_bodies.push(powerup);
-		level_bodies.push(powerup);
-		avis.insert({drawfn:draw_body, body:powerup});
-	};
-}
-
-//icon from: https://cdn2.iconfinder.com/data/icons/interface-6/60/power_arrow_up-512.png
-function set_powerup_teleport_orange()
-{
-	current_state = STATE_POWERUP;
-	powerup_enabled = true;
-	
-	powerup_create_fn = function(pos) //create function to call powerup and place at pos
-	{
-		var texture = "images/Teleport_Symbol_end.png";
-		var powerup = Bodies.circle(pos.x, pos.y, 22.4, {
-			name:"powerup_teleport_orange",
-			isStatic: true,
-			render:{
-				sprite:{texture: texture,
-					xScale:0.4,
-					yScale:0.4}}
-		});
-		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
-		World.add(engine.world, powerup);
-		powerup_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
-		level_bodies.push(powerup);
-		avis.insert({drawfn:draw_body, body:powerup});
-		teleport_ORANGE = powerup;
-	};
-}
-
-function set_powerup_teleport_blue()
-{	
-	current_state = STATE_POWERUP;
-	powerup_enabled = true;
-	
-	powerup_create_fn = function(pos) //create function to call powerup and place at pos
-	{
-		var texture1 = "images/Teleport_Symbol.png";
-		var powerup = Bodies.circle(pos.x, pos.y, 22.4, {
-			name:"powerup_teleport_blue",
-			isStatic: true,
-			render:{
-				sprite:{texture: texture1,
-					xScale:0.4,
-					yScale:0.4}}
-		});
-		
-		
-		Body.disableCollisions(powerup);	//powerup should be "invisible" however turning off collisions mean no collision detection
-		World.add(engine.world, powerup);
-		powerup_bodies.push(powerup); //must add powerup to level bodies here to access in beforeUpdate
-		level_bodies.push(powerup);
-		avis.insert({drawfn:draw_body, body:powerup});
-		teleport_BLUE = powerup;
-	};
-}
 
  /***********************************************************************
  *                      Misc. Functions
@@ -1154,6 +1127,8 @@ function run_level(n)
 	reset_engine();
 	
 	ball = target = null;
+	ball_bodies = [];
+	powerup_bodies = [];
 	
 	// Reset visualizations
 	avis.reset();
@@ -1177,7 +1152,7 @@ function run_level(n)
 	level_bodies = Matter.Composite.allBodies(engine.world);	// Flat array of bodies in current level
 	for (var k in level_bodies)
 	{ // Add current bodies to array visualization
-		avis.insert({fillStyle: 'pink', drawfn:draw_body, body:level_bodies[k]});
+		avis.insert({drawfn:draw_body, body:level_bodies[k]});
 	}
 	
 	current_state = STATE_MOUSEUP;
@@ -1250,9 +1225,10 @@ function tick_starfield()
 	// Draw star field
 	var cx = canvas.width / 2;
 	var cy = canvas.height / 2;
-	for(i in starfield)
+	for(var i = 0; i < starfield.length; i++)
 	{
 		var star = starfield[i];
+		
 		star.z -= star.v * starfield.vmultiplier;		// Move star forward
 		if (star.z <= 0)
 		{
@@ -1277,12 +1253,13 @@ function tick_starfield()
 
 function draw_starfield()
 {
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.fillStyle = 'black';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.lineWidth = 1;
 	ctx.strokeStyle = '#cccccc';
 	ctx.beginPath();
-	for(i in starfield)
+	for(var i = 0; i < starfield.length; i++)
 	{
 		var star = starfield[i];
 		ctx.moveTo(star.canvas_x, star.canvas_y);
@@ -1346,6 +1323,12 @@ function draw_arrow(x1, y1, x2, y2)
 	ctx.fill();
 }
 
+// pos is in world coordinates, distance is also returned in world units
+function distance_from_mouse(wpos)
+{
+	return Vector.magnitude(Vector.sub(wpos, mousePosWorld));
+}
+
 /***********************************************************************
  *                      Game state helpers
  ***********************************************************************/
@@ -1356,7 +1339,7 @@ function is_ready_to_fire()
  
 function is_playing()
 {
-	return current_state > STATE_INITIALIZING && current_state <= STATE_MOUSEDOWN;
+	return current_state > STATE_INITIALIZING && current_state <= STATE_POWERUP;
 }
 
 function is_in_menu()
@@ -1371,6 +1354,11 @@ function is_pausible()
 
 function in_level_select(){
 	return current_state >= STATE_LEVEL_SELECT_MENU;
+}
+
+function placing_powerup()
+{
+	return current_state == STATE_POWERUP;
 }
 
 
