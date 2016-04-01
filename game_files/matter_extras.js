@@ -2,13 +2,14 @@
  *                      Matter.js Extra Functions
  ***********************************************************************/
 
- // Override Matter.Body.create to correct texture offsets
+ // Override Matter.Body.create to correct texture offsets and body inertia
  Matter.Body.createOriginal = Matter.Body.create;
  Matter.Body.create = function(options)
  {
 	var r = Matter.Body.createOriginal(options);
 	r.render.sprite.xOffset =  0.5;
 	r.render.sprite.yOffset =  0.5;
+	Matter.Body.updateInertia(r);
 	return r;
  };
  

@@ -17,12 +17,13 @@ function send_analytics(){
 	console.log('time_spent_on_cf '+time_spent_on_cf);
 	console.log('time_spent_on_level '+time_spent_on_level);
 	console.log('balls used '+balls_used);
-	ga('send', 'event', 'Game', 'Play', 'level_name', 'balls_used');
-	ga('send', 'event', 'vis' , 'Watch', 'level_name', 'time_spent_on_array');
-	ga('send', 'event', 'vis' , 'Watch', 'level_name', 'time_spent_on_var');
-	ga('send', 'event', 'vis' , 'Watch', 'level_name', 'time_spent_on_cf');
-	ga('send', 'event', 'Game', 'Play' , 'level_name', 'time_spent_on_level');
-        console.log("Sending Analytics");
+	ga('send', 'event', 'vis' , 'Watch', {'balls_used': balls_used,
+		'level_name':level_name,
+		'time_spent_on_array':time_spent_on_array,
+		'time_spent_on_var':time_spent_on_var,
+		'time_spent_on_cf':time_spent_on_cf,
+		'time_spent_on_level':time_spent_on_level
+	});
 	//reset analytics variables
 	balls_used = 0;
 	time_spent_on_array = 0;
