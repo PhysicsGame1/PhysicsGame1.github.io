@@ -19,7 +19,7 @@ function send_analytics(){
 	console.log('balls used '+balls_used);
 	
 	ga('send', 'event', 'game' , 'play'  , 'level ' + level_name, balls_used.toString()          , {'balls_used' : balls_used});
-	ga('send', 'event', 'game' , 'play'  , 'level ' + level_name, time_spent_on_level}.toString(), {'Time_spent_on_level': time_spent_on_level});
+	ga('send', 'event', 'game' , 'play'  , 'level ' + level_name, time_spent_on_level.toString(), {'Time_spent_on_level': time_spent_on_level});
 	ga('send', 'event', 'vis'  , 'watch,', 'level ' + level_name, time_spent_on_array.toString() , {'time_spent_on_array': time_spent_on_array});
 	ga('send', 'event', 'vis'  , 'watch' , 'level ' + level_name, time_spent_on_var.toString()   , {'time_spent_on_var' : time_spent_on_var});
 	ga('send', 'event', 'vis'  , 'watch' , 'level ' + level_name, time_spent_on_cf.toString()    , {'time_spent_on_cf' : time_spent_on_cf});
