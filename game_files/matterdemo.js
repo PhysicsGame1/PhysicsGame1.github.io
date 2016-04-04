@@ -1253,7 +1253,8 @@ function init_starfield()
 	starfield.vmin = 1;
 	starfield.vrange = 15;
 	starfield.vmultiplier = 2;
-	for(var i = 0; i < 1500; i++)
+	starfield.twinkleChance = 0.001;
+	for(var i = 0; i < 600; i++)
 	{
 		starfield.push({
 			x: Math.random() * starfield.xrange + starfield.xmin,
@@ -1263,7 +1264,9 @@ function init_starfield()
 			canvas_x: 0,
 			canvas_y: 0,
 			prev_x: 0,
-			prev_y: 0
+			prev_y: 0,
+			twinkle: 0,
+			fillstyle: 0,
 		});
 	}
 	for(i = 0; i < 100; i++)
@@ -1277,9 +1280,21 @@ function tick_starfield()
 	// Draw star field
 	var cx = canvas.width / 2;
 	var cy = canvas.height / 2;
+	var now = Date.now();
 	for(var i = 0; i < starfield.length; i++)
 	{
 		var star = starfield[i];
+		if (star.twinkle > now)
+		{  // Star is already twinkling - calculate new color
+			var c = Math.floor(0xCC - 0.20 * (star.twinkle - now))
+			star.fillStyle = 'rgb(' + c + ',' + c + ',' + c + ')';
+		}
+		else
+		{  // Star is not twinkling - check if it should	
+			star.fillStyle = '#cccccc';
+			if (Math.random() < starfield.twinkleChance)
+				star.twinkle = now + 500;
+		}
 		
 		star.z -= star.v * starfield.vmultiplier;		// Move star forward
 		if (star.z <= 0)
@@ -1314,8 +1329,18 @@ function draw_starfield()
 	for(var i = 0; i < starfield.length; i++)
 	{
 		var star = starfield[i];
-		ctx.moveTo(star.canvas_x, star.canvas_y);
-		ctx.lineTo(star.prev_x, star.prev_y);
+		var dx = star.canvas_x - star.prev_x;
+		var dy = star.canvas_y - star.prev_y;
+		if ((dx*dx + dy*dy) > 1)
+		{
+			ctx.moveTo(star.canvas_x, star.canvas_y);
+			ctx.lineTo(star.prev_x, star.prev_y);
+		}
+		else
+		{
+			ctx.fillStyle = star.fillStyle;
+			ctx.fillRect(star.canvas_x, star.canvas_y, 1, 1);
+		}
 	}
 	ctx.stroke();
 }
