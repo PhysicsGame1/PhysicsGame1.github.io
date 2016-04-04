@@ -1,16 +1,69 @@
-/*
-  nodes
-    .type     "termina", "decision", "io", or "process"
-    .text
-    .x        x-coordinate of center of node
-    .y        y-coordinate of center of node
+/**********************************************************************************************************************
+  Data Structure of flowchart_visualization
+ **********************************************************************************************************************
+  Key                           Type          Meaning
+    .dirty                      Boolean       True if the edge graph needs to be recalculated
+    .portkeys                   Object        Keys in this are available port names.
+    .snap                       Boolean       True if nodes should be snapped to the nearest vertex position
+    .spread                     Integer       Distance between vertices in edge graph
+    .texth                      Integer       Font size in pixels
+    .x                          Float         x position of the camera
+    .y                          Float         y position of the camera
+
+    .outputCanvas               HTMLElement   The canvas to render on          
+    .outputContext              --            2d canvas context
     
-    .left
-    .right
-    .up
-    .down
-      
-*/
+    .nodes[ID]
+      .type                     String        Node type: 'terminal', 'io', 'decision', 'process'
+      .text                     String        Text to be drawn in this node
+      .x                        Float         x coordinate of the center of this node
+      .y                        Float         y coordinate of the center of this node
+      .highlight                Boolean       True if this node should be drawn in a different color
+ **********************************************************************************************************************
+  Notes:
+  Functions beginning with _ underscore are for internal use.
+  
+  Essentially this visualization allows easy specification of various types of nodes ('terminal', 'decision', etc)
+  and arrows linking between them. Currently, each node has 4 ports, where an arrow can enter or leave that node.
+  The ports are centered on the north, south, east, and west bounds of the node. The visualization allows multiple
+  arrows to enter a port, but only one arrow may exit a port.
+  
+  var fvis = new flowchart_visualization();
+  fvis.setCanvas(canvas_element);
+  
+  fvis.terminal('START', 'start', 0, 0);  // Create a terminal at (0, 0) with ID 'START' and the text 'start' written inside
+  fvis.process('STEP1', 'step 1', 0, 100);
+  fvis.terminal('END', 'end', 100, 100);
+  
+  fvis.arrow('START', 'south', 'STEP1', 'north');  // Create an arrow from the south port of START to the north port of STEP1
+  fvis.arrow('STEP1', 'east', 'END', 'west');
+  
+  fvis.render();
+  
+  The output will be something like:
+  
+   ( start )
+       |
+       V
+   | step 1 | -> ( end )
+  
+  
+  Note that nodes require coordinates to be specified, but arrows do not. Paths for arrows are dynamically generated
+  when the visualization renders. 
+  
+  Performance notes:
+  Arrow pathfinding can be an expensive process if there are many arrows defined. A grid form graph is created spanning
+  the region around all of the nodes in the visualization. This is used to find paths between node ports for arrows to follow.
+  
+  The .spread variable determines the distance between possible vertices in the edge graph when calculating arrow paths. A higher value
+  for spread will improve performance, but may not look as good, or may not provide enough vertices for all of the arrows to find a path.
+
+  If the .snap variable is set to true, it prevents arrows having diagonal edges by forcing nodes to be at x,y coordinates that are in line
+  with the grid created by the arrow pathfinding graph. If set to false, the nodes will not be moved, but arrows may appear with diagonal edges.
+  
+  The .dirty variable should be set to true after any action that would cause an arrow to move. Arrow paths are cached after the first render
+  call. Setting this variable informs the visualization that it needs to recalculate arrow paths on the next render call.  
+ ***********************************************************************************************************************/
 
 function flowchart_visualization()
 {
@@ -22,12 +75,27 @@ function flowchart_visualization()
   this.reset();
 }
 
+/************************************************************
+ * Function: setCanvas
+ * Parameters: 
+ *    canvas - HTMLElement
+ * What it does: 
+ *    Sets the canvas the visualization renders to.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.setCanvas = function (canvas)
 {
     this.outputCanvas = canvas;
     this.outputContext = canvas.getContext('2d');
 };
 
+/************************************************************
+ * Function: reset
+ * What it does: 
+ *    Resets the internal state of the visualization.
+ *    Does not affect anything related to rendering.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.reset = function()
 {
   this.nodes = {};
@@ -35,6 +103,14 @@ flowchart_visualization.prototype.reset = function()
   this.y = 0;
 };
 
+/************************************************************
+ * Function: center_on
+ * Parameters: 
+ *    id - ID of a node
+ * What it does: 
+ *    Sets the camera to look down on a node given by ID
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.center_on = function(id)
 {
   if (typeof this.nodes[id] != 'undefined')
@@ -44,11 +120,28 @@ flowchart_visualization.prototype.center_on = function(id)
   }
 };
 
+/************************************************************
+ * Function: get_by_id
+ * Parameters: 
+ *    id - ID of a node
+ * What it does: 
+ *    Returns the node given by ID
+ * Return value: flowchart_node
+ ************************************************************/
 flowchart_visualization.prototype.get_by_id = function(id)
 {
   return this.nodes[id];
 };
 
+/************************************************************
+ * Function: highlight
+ * Parameters: 
+ *    id - ID of a node
+ * What it does: 
+ *    Highlights the node given by ID. All other nodes have
+ *    their highlighting removed.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.highlight = function(id)
 {
   for(var i in this.nodes)
@@ -57,32 +150,63 @@ flowchart_visualization.prototype.highlight = function(id)
     this.nodes[id].highlight = true;
 };
 
+/************************************************************
+ * Function: node_under_mouse
+ * Parameters: 
+ *    mouseX - x coordinate of mouse relative to outputCanvas
+ *    mouseY - y coordinate of mouse relative to outputCanvas
+ * What it does: 
+ *    Returns the node under the mouse, or null if no node
+ *    is under the mouse.
+ * Return value: flowchart_node
+ ************************************************************/
 flowchart_visualization.prototype.node_under_mouse = function(mouseX, mouseY)
 {
   var x_world = mouseX - this.outputCanvas.width / 2 + this.x;
-	var y_world = mouseY - this.outputCanvas.height / 2 + this.y;
+  var y_world = mouseY - this.outputCanvas.height / 2 + this.y;
   for(var id in this.nodes)
-	{
-		var n = this.nodes[id];
-		if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
-			return n;
-	}
+  {
+    var n = this.nodes[id];
+    if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
+      return n;
+  }
   return null;
 };
 
+/************************************************************
+ * Function: id_under_mouse
+ * Parameters: 
+ *    mouseX - x coordinate of mouse relative to outputCanvas
+ *    mouseY - y coordinate of mouse relative to outputCanvas
+ * What it does: 
+ *    Returns the ID of the node under the mouse, or an empty
+ *    string if no node is under the mouse.
+ * Return value: String ID
+ ************************************************************/
 flowchart_visualization.prototype.id_under_mouse = function(mouseX, mouseY)
 {
   var x_world = mouseX - this.outputCanvas.width / 2 + this.x;
-	var y_world = mouseY - this.outputCanvas.height / 2 + this.y;
+  var y_world = mouseY - this.outputCanvas.height / 2 + this.y;
   for(var id in this.nodes)
-	{
-		var n = this.nodes[id];
-		if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
-			return id;
-	}
+  {
+    var n = this.nodes[id];
+    if (x_world >= n.ixmin && x_world <= n.ixmax && y_world >= n.iymin && y_world <= n.iymax)
+      return id;
+  }
   return '';
 };
 
+/************************************************************
+ * Function: terminal
+ * Parameters: 
+ *    id - A unique string identifier
+ *    text - String to be written in the node when rendering
+ *    x - x coordinate of this node
+ *    y - y coordinate of this node
+ * What it does: 
+ *    Creates a new node in the shape of an oval.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.terminal = function(id, text, x, y)
 {
   this.nodes[id] = new flowchart_node("terminal", text, x, y, this.texth);
@@ -101,6 +225,17 @@ flowchart_visualization.prototype.terminal = function(id, text, x, y)
   return this.nodes[id];
 };
 
+/************************************************************
+ * Function: decision
+ * Parameters: 
+ *    id - A unique string identifier
+ *    text - String to be written in the node when rendering
+ *    x - x coordinate of this node
+ *    y - y coordinate of this node
+ * What it does: 
+ *    Creates a new node in the shape of a diamond.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.decision = function(id, text, x, y)
 {
   this.nodes[id] = new flowchart_node("decision", text, x, y, this.texth);
@@ -118,6 +253,17 @@ flowchart_visualization.prototype.decision = function(id, text, x, y)
   return this.nodes[id];
 };
 
+/************************************************************
+ * Function: io
+ * Parameters: 
+ *    id - A unique string identifier
+ *    text - String to be written in the node when rendering
+ *    x - x coordinate of this node
+ *    y - y coordinate of this node
+ * What it does: 
+ *    Creates a new node in the shape of a parallelogram.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.io = function(id, text, x, y)
 {
   this.nodes[id] = new flowchart_node("io", text, x, y, this.texth);
@@ -135,6 +281,17 @@ flowchart_visualization.prototype.io = function(id, text, x, y)
   return this.nodes[id];
 };
 
+/************************************************************
+ * Function: process
+ * Parameters: 
+ *    id - A unique string identifier
+ *    text - String to be written in the node when rendering
+ *    x - x coordinate of this node
+ *    y - y coordinate of this node
+ * What it does: 
+ *    Creates a new node in the shape of a rectangle.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.process = function(id, text, x, y)
 {
   this.nodes[id] = new flowchart_node("process", text, x, y, this.texth);
@@ -152,6 +309,20 @@ flowchart_visualization.prototype.process = function(id, text, x, y)
   return this.nodes[id];
 };
 
+/************************************************************
+ * Function: arrow
+ * Parameters: 
+ *    sourceID - ID of the source node
+ *    sourcePort - String name of the port on the source node
+ *    destID - ID of the destination node
+ *    destPort - String name of the port on the destination node
+ *    label - Optional text that should be written near the source port
+ * What it does: 
+ *    Adds an arrow from one node's port to another node's port.
+ *    Note that both nodes identified by sourceID and destID should
+ *    be created before trying to create an arrow between them.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.arrow = function(sourceID, sourcePort, destID, destPort, label)
 {
   if (typeof this.nodes[sourceID] == 'undefined' || typeof this.nodes[destID] == 'undefined')
@@ -168,7 +339,12 @@ flowchart_visualization.prototype.arrow = function(sourceID, sourcePort, destID,
   this.nodes[sourceID][sourcePort] = {type:'arrow', dest:destID, port:destPort, label:label};
 };
 
-
+/************************************************************
+ * Function: render
+ * What it does: 
+ *    Renders the visualization on the selected canvas.
+ * Return value: None
+ ************************************************************/
 flowchart_visualization.prototype.render = function()
 {
   var ctx = this.outputContext;
@@ -265,6 +441,9 @@ flowchart_visualization.prototype.render = function()
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 };
 
+/************************************************************
+ *            Internal Functions
+ ************************************************************/
 flowchart_visualization.prototype._stroke_arrows = function(snode)
 {
   var ctx = this.outputContext;
@@ -607,6 +786,7 @@ flowchart_visualization.prototype._edge_blocked = function(A, B)
   return false;
 };
 
+// flowchart_node is considered to be internal, none of the functions defined are to be called externally
 function flowchart_node(type, text, x, y, texth)
 {
   this.type = type;
