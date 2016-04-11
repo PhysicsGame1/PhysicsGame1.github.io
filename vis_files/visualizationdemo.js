@@ -19,9 +19,8 @@ fvis.setCanvas(v_canvas);
 // This function will be called once on each level by matterdemo
 function v_init()
 {
-	vvis.addShownKeys('ball', ['position.x', 'velocity', 'restitution', 'density']);
-	vvis.addShownKeys('target', ['position']);
-	
+	vvis.addShownKeys('body', ['position', 'velocity', 'restitution', 'mass', 'name', 'angle', 'isStatic', 'boundaries']);
+	vvis.fontSize = 20;
 	// Create flowchart nodes
 	fvis.terminal('START', 'Start', 0, 0);
 	fvis.io('GETPOS', 'Get ball position', 0, 80);
@@ -127,9 +126,8 @@ function v_updateframe()
 	else if (vis_tab == 2)  // Variables tab
 	{
 		// Update visualization with new values
-		vvis.setVariable('ball', ball);
-		vvis.setVariable('target', target);
-		vvis.render(0, 0, 500, 560);
+		vvis.setVariable('body', body_at_mouse);
+		vvis.render();
 	}
 	else if (vis_tab == 3)  // Control flow tab
 	{

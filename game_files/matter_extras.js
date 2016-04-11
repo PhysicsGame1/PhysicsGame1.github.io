@@ -264,6 +264,7 @@ Matter.Runner.tick = function(runner, engine, time)
   }
 
   Matter.Events.trigger(runner, 'tick', event);
+ // Matter.Events.trigger(engine, 'tick', event);
 
   // if world has been modified, clear the render scene graph
   if (engine.world.isModified 
@@ -366,6 +367,26 @@ Matter.Render.world = function(engine) {
 	Matter.Events.trigger(render, 'afterRender', event);
 };
 
+Matter.Engine.bodyAtPt = function(engine, point)
+{
+	var bodies = Matter.Composite.allBodies(engine.world);
+	for (var i = 0; i < bodies.length; i++)
+	{
+		body = bodies[i];
+		if (Matter.Bounds.contains(body.bounds, point))
+		{
+			//console.log(body.name);
+			for (var j = body.parts.length > 1 ? 1 : 0; j < body.parts.length; j++)
+			{
+				
+				var part = body.parts[j];
+				if (Matter.Vertices.contains(part.vertices, point))
+					return body;
+			}
+		}
+	}
+	return null;
+}
 /***********************************************************************
  *                      Matter.js Camera Class
  ***********************************************************************/

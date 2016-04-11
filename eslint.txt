@@ -1,43 +1,49 @@
 ﻿
 \capstone.f15.learninggames.averagejoes\game_files\matterdemo.js
-   103:5   error    'level_name' is defined but never used           no-unused-vars
-   105:5   error    'time_spent_on_level' is defined but never used  no-unused-vars
-   106:5   error    'time_spent_on_array' is defined but never used  no-unused-vars
-   107:5   error    'time_spent_on_var' is defined but never used    no-unused-vars
-   108:5   error    'time_spent_on_cf' is defined but never used     no-unused-vars
-   109:5   error    'time_vis_switch' is defined but never used      no-unused-vars
-   127:2   warning  Unexpected console statement                     no-console
-   384:20  error    'v_canvas' is not defined                        no-undef
-   400:7   error    'v_mousedown' is not defined                     no-undef
-   412:5   error    'v_mousemove' is not defined                     no-undef
-   418:7   error    'v_mouseup' is not defined                       no-undef
-   545:29  warning  Don't make functions within a loop               no-loop-func
-   553:4   error    'updateVisTime' is not defined                   no-undef
-   553:18  error    'current_tab' is not defined                     no-undef
-   555:4   error    'send_analytics' is not defined                  no-undef
-   557:15  warning  Don't make functions within a loop               no-loop-func
-   758:3   warning  Unexpected console statement                     no-console
-   791:3   warning  Unexpected console statement                     no-console
-   836:2   warning  Unexpected console statement                     no-console
-   976:3   error    Missing semicolon                                semi
-  1035:7   error    'texture' is defined but never used              no-unused-vars
-  1126:2   warning  Unexpected console statement                     no-console
-  1314:3   warning  Unexpected console statement                     no-console
+   103:5   error    'level_name' is defined but never used              no-unused-vars
+   105:5   error    'time_spent_on_level' is defined but never used     no-unused-vars
+   106:5   error    'time_spent_on_array' is defined but never used     no-unused-vars
+   107:5   error    'time_spent_on_var' is defined but never used       no-unused-vars
+   108:5   error    'time_spent_on_cf' is defined but never used        no-unused-vars
+   109:5   error    'time_vis_switch' is defined but never used         no-unused-vars
+   127:2   warning  Unexpected console statement                        no-console
+   394:20  error    'v_canvas' is not defined                           no-undef
+   410:7   error    'v_mousedown' is not defined                        no-undef
+   422:5   error    'v_mousemove' is not defined                        no-undef
+   428:7   error    'v_mouseup' is not defined                          no-undef
+   555:29  warning  Don't make functions within a loop                  no-loop-func
+   563:4   error    'updateVisTime' is not defined                      no-undef
+   563:18  error    'current_tab' is not defined                        no-undef
+   565:4   error    'send_analytics' is not defined                     no-undef
+   567:15  warning  Don't make functions within a loop                  no-loop-func
+   768:3   warning  Unexpected console statement                        no-console
+   801:3   warning  Unexpected console statement                        no-console
+   846:2   warning  Unexpected console statement                        no-console
+   911:46  warning  A leading decimal point can be confused with a dot  no-floating-decimal
+   911:57  warning  A leading decimal point can be confused with a dot  no-floating-decimal
+   981:6   error    'texture' is defined but never used                 no-unused-vars
+   988:3   error    Missing semicolon                                   semi
+  1000:6   error    'circleStack' is already defined                    no-redeclare
+  1046:6   error    'texture' is defined but never used                 no-unused-vars
+  1142:2   warning  Unexpected console statement                        no-console
+  1270:16  error    Unexpected trailing comma                           comma-dangle
+  1290:58  error    Missing semicolon                                   semi
+  1355:3   warning  Unexpected console statement                        no-console
 
-✖ 23 problems (15 errors, 8 warnings)
+✖ 29 problems (19 errors, 10 warnings)
 
 
 \capstone.f15.learninggames.averagejoes\vis_files\flowchart_visualization.js
-   91:9   warning  'x' is already declared in the upper scope  no-shadow
-   91:21  warning  'y' is already declared in the upper scope  no-shadow
-  617:26  error    'ctx' is defined but never used             no-unused-vars
+  215:9   warning  'x' is already declared in the upper scope  no-shadow
+  215:21  warning  'y' is already declared in the upper scope  no-shadow
+  797:26  error    'ctx' is defined but never used             no-unused-vars
 
 ✖ 3 problems (1 error, 2 warnings)
 
 
 \capstone.f15.learninggames.averagejoes\vis_files\variable_visualization.js
-  333:19  error  'pixiGetFontHeight' is not defined  no-undef
-  379:19  error  'pixiGetFontHeight' is not defined  no-undef
+  324:20  error  'pixiGetFontHeight' is not defined  no-undef
+  370:20  error  'pixiGetFontHeight' is not defined  no-undef
 
 ✖ 2 problems (2 errors, 0 warnings)
 

@@ -1,7 +1,7 @@
 ﻿/***********************************************************************
  *                      Global definitions
  ***********************************************************************/
-var DEBUG = true;		// Set to true to enable various features for testing
+var DEBUG = false;		// Set to true to enable various features for testing
 var START_LEVEL = DEBUG ? 10 : 0;	// This level will be run when the game starts
 
 var canvas = document.getElementById("physicsCanvas");
@@ -61,6 +61,7 @@ var STATE_REGION_SELECT = 900;
 // Tracks the current state of the game
 var current_state;
 var paused_state;
+var tutorial_state = 0;
 
 var powerup_type;
 
@@ -97,6 +98,12 @@ var spawn_zone = {x:9001, y:9001, r:100, max_pull:200, divisor:50};
 // Note: Starfield algorithm from http://freespace.virgin.net/hugo.elias/graphics/x_stars.htm
 var starfield;
 
+// Variable used to move bodies around when DEBUG==true
+var mouseConstraint;
+
+// Contains a reference to the body under the mouse
+var body_at_mouse = null;
+
 /*********************
 	Analytics Variables
 **********************/
@@ -116,7 +123,7 @@ var buttons = {};
 
 buttons['Pause'] = new canvas_button(canvas, "Pause", 5, 5, function ()
 {
-  Matter.Runner.pause(fps_runner);
+	Matter.Runner.pause(fps_runner);
 	paused_state = current_state;
 	current_state = STATE_PAUSE_MENU;
 }, {hotkey:'KeyP'});
@@ -282,19 +289,19 @@ templates['ball'] = {
 templates['steel_ball'] = Common.extend(Common.clone(templates['ball'], true), {
 	density: 0.07,
 	restitution: 0.3,
-	render: { sprite: { texture: 'images/steel_ball.png' }}
+	render: { sprite: { texture: 'images/radioactive_ball.png' }}
 });
 
 templates['iron_ball'] = Common.extend(Common.clone(templates['ball'], true), {
 	density: 0.09,
 	restitution: 0.4,
-	render: { sprite: { texture: 'images/iron_ball.png' }}
+	render: { sprite: { texture: 'images/energy_ball.png' }}
 });
 
 templates['rubber_ball'] = Common.extend(Common.clone(templates['ball'], true), {
 	density: 0.05,
 	restitution: 0.9,
-	render: { sprite: { texture: 'images/rubber_ball.png' }}
+	render: { sprite: { texture: 'images/electrical_ball.png' }}
 });
 
 templates['powerup'] = {
@@ -311,7 +318,7 @@ templates['powerup'] = {
 
 templates['powerup_force'] = Common.extend(Common.clone(templates['powerup'], true), {
 	name:'powerup_force',
-	render: { sprite: { texture: 'images/powerup_force.png' }}
+	render: { sprite: { texture: 'images/accelerator_gate.png' }}
 });
 
 templates['powerup_teleport_orange'] = Common.extend(Common.clone(templates['powerup'], true), {
@@ -334,14 +341,55 @@ templates['stack'] = {
 			texture:'images/Astroid.png'
 }}};
 
-templates['space_shield'] = {
-	name: 'stack',
+templates['space_rock'] = {
+	name: 'shield',
 	mass: 25,
 	render:{
 		sprite:{
+			xScale:0.75,
+			yScale:0.75,
+			texture:'images/space_rock.png'
+}}};
+
+templates['horiz_space_platform1'] = {
+	name: 'horiz_beam',
+	mass: 25,
+	isStatic: true,
+	render:{
+		sprite:{
+			xScale:2,
+			yScale:1,
+			texture:'images/horiz_space_platform1.png'
+}}};
+
+templates['horiz_space_platform2'] = {
+	name: 'horiz_beam',
+	mass: 25,
+	isStatic: true,
+	render:{
+		sprite:{
+			xScale:2,
+			yScale:3,
+			texture:'images/horiz_space_platform1.png'
+}}};
+
+templates['turkey_bacon'] = {
+	name: 'turkey_bacon',
+	mass: 25,
+	isStatic: true,
+	render:{
+		sprite:{
+			xScale:1,
+			yScale:2,
+			texture:'images/turkey_bacon.png'
+}}};
+
+templates['tutorial_arrow'] = {
+	render: { 
+		sprite: { 
+			texture: 'images/tutorial_arrow.png',
 			xScale:0.5,
-			yScale:0.5,
-			texture:'images/Shield.png'
+			yScale:0.5
 }}};
 	
 function circle_body_from_template(name, pos, radius)
@@ -388,49 +436,66 @@ document.addEventListener("mouseup", mouseevent, false);
 
 function mouseevent(event)
 {
-  // Translate from window client coordinates to coordinates relative to each canvas
-  var mx = event.clientX;
-  var my = event.clientY;
-  var vis_bounds = v_canvas.getBoundingClientRect();
-  var game_bounds = canvas.getBoundingClientRect();
-  
-  var vis_relative = {x:mx-vis_bounds.left, y:my-vis_bounds.top};
-  mousePosCanvas = {x:mx-game_bounds.left, y:my-game_bounds.top}; // matterdemo global
+	// Translate from window client coordinates to coordinates relative to each canvas
+	var mx = event.clientX;
+	var my = event.clientY;
+	var vis_bounds = v_canvas.getBoundingClientRect();
+	var game_bounds = canvas.getBoundingClientRect();
+
+	var vis_relative = {x:mx-vis_bounds.left, y:my-vis_bounds.top};
+	mousePosCanvas = {x:mx-game_bounds.left, y:my-game_bounds.top}; // matterdemo global
 	mousePosWorld = canvasToWorldPt(mousePosCanvas);
   
   
-  if (event.type == 'mousedown')
-  {
-    // Only dispatch mousedown events if they occur in one of the canvases
-    // Check if the event occurred in the visualization canvas
-    mouseevent.lastClick = '';
-    if (mx >= vis_bounds.left && mx <= vis_bounds.right && my >= vis_bounds.top && my <= vis_bounds.bottom)
-    {
-      event.preventDefault(); // Prevent highlighting stuff when dragging the mouse
-      v_mousedown(vis_relative);
-      mouseevent.lastClick = 'visualization';
-    }
-    else if (mx >= game_bounds.left && mx <= game_bounds.right && my >= game_bounds.top && my <= game_bounds.bottom)
-    {
-      event.preventDefault();
-      mousedown(mousePosCanvas);
-      mouseevent.lastClick = 'game';
-    }
-  }
-  else if (event.type == 'mousemove')
-  {
-    v_mousemove(vis_relative);
-  }
-  else if (event.type == 'mouseup')
-  {
-    // Only want to fire mouseup if mousedown was previously invoked to the same canvas
-    if (mouseevent.lastClick == 'visualization')
-      v_mouseup(vis_relative);
-    else if (mouseevent.lastClick == 'game')
-      mouseup(mousePosCanvas);
-    mouseevent.lastClick = '';
-  }
-  //console.log(event.type);
+	if (event.type == 'mousedown')
+	{
+		// Only dispatch mousedown events if they occur in one of the canvases
+		// Check if the event occurred in the visualization canvas
+		mouseevent.lastClick = '';
+		if (mx >= vis_bounds.left && mx <= vis_bounds.right && my >= vis_bounds.top && my <= vis_bounds.bottom)
+		{
+			event.preventDefault(); // Prevent highlighting stuff when dragging the mouse
+			v_mousedown(vis_relative);
+			mouseevent.lastClick = 'visualization';
+		}
+		else if (mx >= game_bounds.left && mx <= game_bounds.right && my >= game_bounds.top && my <= game_bounds.bottom)
+		{
+			event.preventDefault();
+			if (DEBUG && mouseConstraint)
+			{
+				var body = Matter.Engine.bodyAtPt(engine, mousePosWorld);
+				if (body && Matter.Detector.canCollide(body.collisionFilter, mouseConstraint.collisionFilter))
+				{
+					mouseConstraint.constraint.bodyB = body;
+					mouseConstraint.constraint.pointB = { x: mousePosWorld.x - body.position.x, y: mousePosWorld.y - body.position.y };
+					mouseConstraint.constraint.angleB = body.angle;
+					return;
+				}
+			}
+		  
+		  mousedown(mousePosCanvas);
+		  mouseevent.lastClick = 'game';
+		}
+
+	}
+	else if (event.type == 'mousemove')
+	{
+		v_mousemove(vis_relative);
+		if (mouseConstraint)
+			mouseConstraint.constraint.pointA = mousePosWorld;
+	}
+	else if (event.type == 'mouseup')
+	{
+		// Only want to fire mouseup if mousedown was previously invoked to the same canvas
+		if (mouseevent.lastClick == 'visualization')
+			v_mouseup(vis_relative);
+		else if (mouseevent.lastClick == 'game')
+			mouseup(mousePosCanvas);
+		mouseevent.lastClick = '';
+		if (mouseConstraint)
+			mouseConstraint.constraint.bodyB = mouseConstraint.constraint.pointB = null;
+	}
+	//console.log(event.type);
 }
 
 function beforeUpdate(event)
@@ -463,7 +528,7 @@ function checkPowerupHit()
 			{	// A ball touched a powerup
 				if (powerup.name=="powerup_force")
 				{
-					var netF = 1; //adjust this to determine mangitude of force
+					var netF = 1.5; //adjust this to determine mangitude of force
 					var force = Vector.create(netF*Math.sin(powerup.angle), -netF*Math.cos(powerup.angle));
 					Body.applyForce(ballk, ballk.position, force);
 				}
@@ -524,6 +589,7 @@ function checkLevelSeven()
 
 function afterUpdate(event)
 {
+	body_at_mouse = Engine.bodyAtPt(engine, mousePosWorld);
 	if (is_ready_to_fire() && ball_madness && fps_runner.frameCounter % 6 == 0)
 	{
 		var sc = current_state;
@@ -663,6 +729,27 @@ function afterRender(event)
 				, Math.abs(region_select_start.x - mousePosCanvas.x), Math.abs(region_select_start.y - mousePosCanvas.y));
 	}
 	
+	if (is_playing() && body_at_mouse != null)
+	{
+		ctx.fillStyle = 'rgba(66, 200, 70, 0.45)';
+		var v = worldToCanvasPt(body_at_mouse.vertices[0]);
+		ctx.beginPath();
+		ctx.moveTo(v.x, v.y);
+		var bounds = {left:v.x, right:v.x, top:v.y, bottom:v.y};
+		for (i = 1; i < body_at_mouse.vertices.length; i++)
+		{
+			v = worldToCanvasPt(body_at_mouse.vertices[i]);
+			bounds.left = Math.min(bounds.left, v.x);
+			bounds.right = Math.max(bounds.right, v.x);
+			bounds.top = Math.min(bounds.top, v.y);
+			bounds.bottom = Math.max(bounds.bottom, v.y);
+			ctx.lineTo(v.x, v.y);
+		}
+		body_at_mouse.boundaries = bounds;
+		ctx.closePath();
+		ctx.fill();
+	}
+	
 	if (DEBUG && (is_playing() || current_state == STATE_REGION_SELECT))
 	{
 		draw_textbox('   FPS:' + round(fps_runner.fps, 2) +
@@ -720,13 +807,86 @@ function afterRender(event)
 			tick_starfield();
 			ctx.font = '48px Monospace';
 			ctx.fillStyle = 'white';
+			ctx.textBaseline = top;
 			ctx.fillText('Physics Game', (canvas.width - ctx.measureText('Physics Game').width) / 2, canvas.height / 2 - 40);
 		}
-    else
-    {
-      ctx.fillStyle = 'rgba(200,200,200,0.35)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }    
+	else
+	{
+	  ctx.fillStyle = 'rgba(200,200,200,0.35)';
+	  ctx.fillRect(0, 0, canvas.width, canvas.height);
+	}    
+	}
+
+	if(is_playing() && tutorial_state < 10 && current_level == 0){
+		if(tutorial_state == 0){
+			//select ball
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Select your ball material', (canvas.width - ctx.measureText('Select your ball material').width) / 3 - 75, canvas.height - 150);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3, y:canvas.height-30 }, 0.65);
+		}
+		if(tutorial_state == 1){
+			//select tele
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Select the Teleportation Portal power-up', 
+				(canvas.width - ctx.measureText('Select the Teleportation Portal power-up').width) , canvas.height - 150);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3*2+75, y:canvas.height-30 }, 0.65);
+		}
+		if(tutorial_state == 2){
+			//place tele entrance
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Place the entrance portal here', 
+				(canvas.width - ctx.measureText('Place the entrance portal here').width)/4 , canvas.height/2);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3, y:canvas.height/3*2 }, 0.65);
+		}
+		if(tutorial_state == 3){
+			//place tele exit
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Place the exit portal here', 
+				(canvas.width - ctx.measureText('Place the exit portal here').width)/4*3 , canvas.height/2-75);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3*2+50, y:canvas.height/3*2-50 }, 0.65);
+		}
+		if(tutorial_state == 4){
+			//select force power up
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Select the Accelerator Gate power-up', 
+				(canvas.width - ctx.measureText('Select the Accelerator Gate power-up').width) / 2 + 50, canvas.height - 150);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/2+75, y:canvas.height-30 }, 0.65);
+		}
+		if(tutorial_state == 5){
+			//place force power up
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Place the Accelerator Gate here', 
+				(canvas.width - ctx.measureText('Place the Accelerator Gate here').width)/4+50 , canvas.height/2-50);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3+50, y:canvas.height/3*2-50 }, 0.65);
+		}
+		if(tutorial_state == 6){
+			//change force direction
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Change the direction of the Accelerator Gate', 
+				(canvas.width - ctx.measureText('Change the direction of the Accelerator Gate').width)/4+50 , canvas.height/2-75);
+			ctx.fillText('so it is pointing toward the entrance portal', 
+				(canvas.width - ctx.measureText('so it is pointing toward the entrance portal').width)/4+50 , canvas.height/2-50);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3+50, y:canvas.height/3*2-50 }, 0.65);
+		}
+		if(tutorial_state == 7){
+			//fire ball hit target
+			ctx.font = '20px Monospace';
+			ctx.fillStyle = 'white';
+			ctx.fillText('Fire the ball in the Accelerator Gate', 
+				(canvas.width - ctx.measureText('Fire the ball in the Accelerator Gate').width)/2+50 , canvas.height/2-75);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3+50, y:canvas.height/3*2-50 }, 0.65);
+
+			ctx.fillText('to the hit the target', 
+				(canvas.width - ctx.measureText('to the hit the target').width)/2+50 , canvas.height/2-50);
+			draw_body_from_template('tutorial_arrow', {x:canvas.width/3*2-10, y:canvas.height/3*2-20 }, 0.65);
+		}
 	}
 	
 	for (i in buttons)
@@ -758,6 +918,9 @@ function mousedown(event)
 				var offset = Math.PI*0.5; //offset for force powerup to 0 degrees right instead of up
 				var angle = -offset + Vector.angle(mousePosWorld, powerup.position); //angle between PI and -PI relative to 0 x-axis
 				Body.setAngle(powerup, angle);
+				console.log(angle);
+				if(current_level == 0 && tutorial_state == 6 && angle > -2.5 && angle < -2)	//check if force is in direction of tele
+					tutorial_state++;
 			}
 		}
 	}
@@ -767,9 +930,14 @@ function mousedown(event)
 	{
 		console.log('create: ' + powerup_type);
 		powerup_bodies.push(circle_body_from_template(powerup_type, mousePosWorld, 22.4));
+		if(powerup_type == 'powerup_force' && current_level == 0 && tutorial_state == 5){
+			tutorial_state++;
+		}
 		if (powerup_type == 'powerup_teleport_blue')
 		{	// Place orange next. Stay in powerup state.
 			powerup_type = 'powerup_teleport_orange';
+			if(current_level == 0 && tutorial_state == 2)
+				tutorial_state++;
 			return;
 		}
 		if (powerup_type == 'powerup_teleport_orange')
@@ -778,6 +946,8 @@ function mousedown(event)
 			var orange = powerup_bodies[powerup_bodies.length-1];
 			blue.link = orange;
 			orange.link = blue;
+			if(current_level == 0 && tutorial_state == 3)
+				tutorial_state++;
 		}
 		current_state = STATE_MOUSEUP;
 	}
@@ -859,6 +1029,15 @@ function mousewheel(event)
 // Runs when page resizes
 function windowresize()
 {
+	var ow = canvas.width, oh = canvas.height;
+	// Fit canvases to screen
+	var h1 = window.innerHeight - document.getElementById('top_bar').offsetHeight - document.getElementById('input_fields').offsetHeight - 130;
+	var h2 = (window.innerWidth - document.getElementById('vis_selector').offsetWidth - 20) / 1024 * 600;
+	canvas.height = Math.min(h1,h2);
+	canvas.width = canvas.height * 1024 / 600;
+	v_canvas.width = document.getElementById('vis_selector').clientWidth; //v_canvas.height * 500 / 560;
+	v_canvas.height = canvas.height - document.getElementById('vis_selector').offsetHeight;
+	
 	// Reposition canvas buttons
 	var x = canvas.width / 2; var y = canvas.height / 2;
 	buttons['Start'].move(x, y + 50);
@@ -866,6 +1045,9 @@ function windowresize()
 	buttons['Level Select'].move(x, y);
 	buttons['Quit'].move(x, y + 50);
 	buttons['Cancel'].move(x, y + 100);
+	
+	// Spread out stars
+	resize_starfield(ow, oh, canvas.width, canvas.height);
 }
 
 /***********************************************************************
@@ -884,45 +1066,32 @@ function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon, xmin, x
 	var yLength = ymax - ymin;
 	var xMedian = (xmax + xmin) / 2;
 	var yMedian = (ymax + ymin) / 2;
-	/*
-	 render: {
-                visible: true,
-                sprite: {
-                    xScale: 1,
-                    yScale: 1,
-                    xOffset: 0,
-                    yOffset: 0
-                },
-                lineWidth: 1.5
-            }
-	*/
+
 	// Create the world borders
 	worldObjects.push(Bodies.rectangle(xMedian, ymax + 50, xLength + 200, 100, {name:"border", isStatic: true, render:{visible: false} }));	// bottom
 	worldObjects.push(Bodies.rectangle(xMedian, ymin - 50, xLength + 200, 100, {name:"border", isStatic: true, render:{visible: false}}));	// top
 	worldObjects.push(Bodies.rectangle(xmin - 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{visible: false}}));	// left
 	worldObjects.push(Bodies.rectangle(xmax + 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{visible: false}}));	// right fillStyle: 'blue'
 	var texture = "images/EnemyShip.png";
-	worldObjects.push(target = Body.create({
-		mass: 6,
-		position: { x: xTarget, y: yTarget },
-		restitution: 0.5,
-		vertices: [{ x:0, y: 0 }, { x:-20, y: 10 }, { x:-20, y: 30 }, { x:20, y: 30 }, { x:20, y: 10 }],
-		name:"target" ,
-		render: {sprite:{ texture: texture, xScale:.5, yScale:.5}}
-	}));
+	worldObjects.push(target = Bodies.rectangle(xTarget, yTarget, 45, 30, {mass: 6, name:"target", render: {sprite:{ texture: texture, xScale:.5, yScale:.5}}}));
 
 	spawn_zone.x = xCannon;
 	spawn_zone.y = yCannon;
+	
+	mouseConstraint = Matter.MouseConstraint.create(engine, {constraint:{pointB:null}});
+	World.add(engine.world, mouseConstraint);
 }
-
-function create_obstacle(worldObjects, x, y, w, h)
+function create_obstacle(worldObjects, x, y, w, h, template)
 {
-	worldObjects.push(Bodies.rectangle(x, y, w, h, {name:"obstacle", isStatic: true, render:{fillStyle: 'brown'}}));
+	if(template === undefined)
+		worldObjects.push(Bodies.rectangle(x, y, w, h, {name:'obstacle', isStatic: true, render:{fillStyle: 'brown'}}));
+	else
+		worldObjects.push(Bodies.rectangle(x, y, w, h, template));
 }
  
 level_create_fns.push( function(worldObjects) {	 // level 0
 	create_common(worldObjects, 650, 450, 60, 540);
-	create_obstacle(worldObjects, 650, 480, 80, 40);
+	create_obstacle(worldObjects, 650, 480, 80, 40, templates['horiz_space_platform1']);
 	// build a destructible wall
 	// x pos, y pos, # cols, # rows, x spacing, y spacing
 	var stack = Composites.stack(450, 400, 1, 4, 5, 0, function(x, y) {
@@ -933,11 +1102,11 @@ level_create_fns.push( function(worldObjects) {	 // level 0
 
 level_create_fns.push( function(worldObjects) {	 // level 1
 	create_common(worldObjects, 600, 245, 60, 540);
-	create_obstacle(worldObjects, 200, 300, 60, 20);
-	create_obstacle(worldObjects, 150, 100, 20, 70);
-	create_obstacle(worldObjects, 600, 160, 30, 90);
-	create_obstacle(worldObjects, 600, 300, 60, 80);
-	create_obstacle(worldObjects, 600, 300, 60, 80);
+	create_obstacle(worldObjects, 200, 300, 60, 20, templates['turkey_bacon']);
+	create_obstacle(worldObjects, 150, 100, 20, 70, templates['turkey_bacon']);
+	create_obstacle(worldObjects, 600, 160, 30, 90, templates['turkey_bacon']);
+	create_obstacle(worldObjects, 600, 300, 60, 80, templates['horiz_space_platform1']);
+	create_obstacle(worldObjects, 600, 300, 60, 80, templates['horiz_space_platform2']);
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 2
@@ -995,12 +1164,12 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 
 	var texture = "images/Astroid.png";
 	var circleStack = Composites.stack(200, 185, 8, 1, 20, 0, function(x, y) {
-            return Bodies.circle(x, y, 30, {name:"explode", render:{sprite:{texture: texture, xScale: 1, yScale: 1}}});
+			return Bodies.circle(x, y, 30, {name:"explode", render:{sprite:{texture: texture, xScale: 1, yScale: 1}}});
 	});
 	var circleStack = Composites.stack(200, 185, 8, 1, 20, 0, function(x, y) {
-            return Bodies.circle(x, y, 30, {name:"bouncyBall", render:{sprite:{texture: 'images/Shield.png', xScale: 0.5, yScale: 0.5}}});
+			return Bodies.circle(x, y, 30, templates['space_rock']);
 
-        });
+		});
 
 	var spinbar = Bodies.rectangle(300, 500, 200, 10, {name:"vertSpin", isStatic: true, render:{fillStyle: 'brown'}});
 	var spinbar2 = Bodies.rectangle(500, 300, 200, 10, {name:"vertSpin2", isStatic: true, render:{fillStyle: 'brown'}});
@@ -1019,8 +1188,8 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 level_create_fns.push( function(worldObjects) {	 // Chris level 8
 	create_common(worldObjects, 510, 80, 60, 540);
 	var circleStack = Composites.stack(200, 185, 8, 1, 20, 0, function(x, y) {
-            return Bodies.circle(x, y, 30, {name:"bouncyBall", render:{sprite:{texture: 'images/Astroid.png', xScale: 1, yScale: 1}}});
-        });
+			return Bodies.circle(x, y, 30, {name:"bouncyBall", render:{sprite:{texture: 'images/Astroid.png', xScale: 1, yScale: 1}}});
+		});
 
 	var bar = Bodies.rectangle(175, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
 	var bar2 = Bodies.rectangle(820, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
@@ -1038,7 +1207,8 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 8
 
 level_create_fns.push( function(worldObjects) {	 // level 9
 	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 640, 0, 140, 1600);	
+	create_obstacle(worldObjects, 640, 200, 140, 1000);	
+	create_obstacle(worldObjects, 840, 100, 160, 50);	
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 10
@@ -1070,13 +1240,20 @@ function set_powerup_type(t)
 	{
 		powerup_type = t;
 		current_state = STATE_POWERUP;
+		if(powerup_type == 'powerup_teleport_blue' && current_level == 0 && tutorial_state == 1)
+			tutorial_state++;
+		if(powerup_type == 'powerup_force' && current_level == 0 && tutorial_state == 4)
+			tutorial_state++;
 	}
 }
 
 function set_ball_type(t)
 {
-	if (is_playing())
+	if (is_playing()){
 		ball_type = t;
+		if(current_level == 0 && tutorial_state == 0)
+			tutorial_state++;
+	}
 }
  
 
@@ -1273,6 +1450,18 @@ function init_starfield()
 		tick_starfield();
 
 	starfield.vmultiplier = 0.002;
+}
+
+function resize_starfield(old_width, old_height, new_width, new_height)
+{
+	var xscale = new_width / old_width;
+	var yscale = new_height / old_height;
+	for(var i = 0; i < starfield.length; i++)
+	{
+		var star = starfield[i];
+		star.x *= xscale;
+		star.y *= yscale;
+	}
 }
 
 function tick_starfield()
