@@ -1,8 +1,26 @@
 ﻿/***********************************************************************
  *                      Global definitions
  ***********************************************************************/
-var DEBUG = false;		// Set to true to enable various features for testing
+var DEBUG = window.location.protocol == 'file:';		// Testing features enabled by default if running from local file system
 var START_LEVEL = DEBUG ? 10 : 0;	// This level will be run when the game starts
+
+var STATE_INITIALIZING = 0;
+
+var STATE_MOUSEUP = 200;
+var STATE_MOUSEDOWN = 300;
+var STATE_POWERUP = 350;
+
+var STATE_TARGET_HIT = 400;
+
+var STATE_START_MENU = 600;
+var STATE_PAUSE_MENU = 601;
+var STATE_LEVEL_SELECT_MENU = 610;
+var STATE_INTRO_SCROLL = 620;
+
+var STATE_REGION_SELECT = 900;
+
+// Sets the default state on loading the game
+var START_STATE = DEBUG ? STATE_LEVEL_SELECT_MENU : STATE_START_MENU;
 
 var canvas = document.getElementById("physicsCanvas");
 var ctx = canvas.getContext("2d");
@@ -42,20 +60,6 @@ var engine = Engine.create({
 			height:600
 		}
 }});
-
-var STATE_INITIALIZING = 0;
-
-var STATE_MOUSEUP = 200;
-var STATE_MOUSEDOWN = 300;
-var STATE_POWERUP = 350;
-
-var STATE_TARGET_HIT = 400;
-
-var STATE_START_MENU = 600;
-var STATE_PAUSE_MENU = 601;
-var STATE_LEVEL_SELECT_MENU = 610;
-
-var STATE_REGION_SELECT = 900;
 
 
 // Tracks the current state of the game
@@ -103,6 +107,9 @@ var mouseConstraint;
 
 // Contains a reference to the body under the mouse
 var body_at_mouse = null;
+
+// Start time of the animation before running the first level
+var intro_scroll_time = Date.now();
 
 /*********************
 	Analytics Variables
@@ -186,7 +193,9 @@ buttons['Region'] = new canvas_button(canvas, "Region", 5, 180, function()
 
 buttons['Start'] = new canvas_button(canvas, "Start", canvas.width / 2, canvas.height / 2 + 50, function ()
 {
-	run_level(START_LEVEL);
+	//run_level(START_LEVEL);
+	current_state = STATE_INTRO_SCROLL;
+	intro_scroll_time = Date.now();
 }, {centered:true, font:'bold 28px monospace', hotkey:'KeyS'});
 
 buttons['Restart'] = new canvas_button(canvas, 'Restart', canvas.width / 2, canvas.height / 2 - 50, function ()
@@ -221,23 +230,30 @@ buttons['Main Menu'] = new canvas_button(canvas, "Main Menu", 5, 5, function ()
 	Level select buttons
 */
 
-function generate_level_buttons(num_levels)
+function generate_level_buttons()
 {
+	for(var i = 0; i < level_create_fns.length; i++)
+	{
+		buttons['Level ' + i] = new canvas_button(canvas, 'Level ' + i, 0, 0, function ()
+		{
+			run_level(this.options.level);
+		}, {centered:true, font:'bold 24px monospace', enabled:false, level:i, unlocked:false});
+	}
+	buttons['Level 0'].options.unlocked = true;
+}
+
+function move_level_buttons()
+{
+	var num_levels = level_create_fns.length;
 	var num_columns = 2;
 	var num_rows = Math.ceil(num_levels / num_columns);
 	
 	var x_space = canvas.width / (num_columns+1);
 	var y_space = 50;
-	
-	var x = 1;
-	var y = 1;
-	for(var i = 0; i < num_levels; i++)
+	var x = 1, y = 1;
+	for(var i = 0; i < level_create_fns.length; i++)
 	{
-		buttons['Level ' + i] = new canvas_button(canvas, 'Level ' + i, x * x_space, 100 + y*y_space, function ()
-		{
-			run_level(this.options.level);
-		}, {centered:true, font:'bold 24px monospace', enabled:false, level:i, unlocked:false});
-		
+		buttons['Level ' + i].move(x * x_space, 100 + y * y_space);
 		y += 1;
 		if (y > num_rows)
 		{
@@ -245,8 +261,6 @@ function generate_level_buttons(num_levels)
 			y = 1;
 		}
 	}
-	
-	buttons['Level 0'].options.unlocked = true;
 }
 
 //buttons['Set Iron'] = new canvas_button(canvas, 'Set Iron', canvas.width / 2, 30, set_iron, {centered:true, image:'images/iron_ball.png'});
@@ -331,13 +345,19 @@ templates['powerup_teleport_blue'] = Common.extend(Common.clone(templates['power
 	render: { sprite: { texture: 'images/powerup_teleport_blue.png' }}
 });
 
+templates['border'] = {
+	name:"border",
+	isStatic: true,
+	render:{
+		fillColor:'#FFFFFF',
+		globalAlpha:0.1
+}};
+
 templates['stack'] = {
 	name: 'stack',
 	mass: 15,
 	render:{
 		sprite:{
-			xScale:0.5,
-			yScale:0.5,
 			texture:'images/Astroid.png'
 }}};
 
@@ -346,42 +366,57 @@ templates['space_rock'] = {
 	mass: 25,
 	render:{
 		sprite:{
-			xScale:0.75,
-			yScale:0.75,
 			texture:'images/space_rock.png'
 }}};
 
+templates['horiz_space_platform'] = {
+	name: 'horiz_space_platform',
+	isStatic: true,
+	render:{
+		sprite:{
+			texture:'images/horiz_space_platform3.png'
+}}};
+
+templates['horiz_space_platform22'] = {
+	name: 'balance',
+	mass: 130,
+	render:{
+		sprite:{
+			texture:'images/horiz_space_platform3.png'
+}}};
+
+templates['horiz_space_platform23'] = {
+	name: 'vertSpin2',
+	isStatic: true,
+	render:{
+		sprite:{
+			texture:'images/horiz_space_platform3.png'
+}}};
+
 templates['horiz_space_platform1'] = {
-	name: 'horiz_beam',
-	mass: 25,
+	name: 'vertSpin',
+	isStatic: true,
+	render:{
+		sprite:{
+			texture:'images/horiz_space_platform3.png'
+}}};
+
+templates['vert_space_platform5'] = {
+	name: 'vert_space_platform5',
+	isStatic: true,
+	render:{
+		sprite:{
+			texture:'images/vert_space_platform5.png'
+}}};
+
+templates['space_triangle'] = {
+	name: 'pivot',
 	isStatic: true,
 	render:{
 		sprite:{
 			xScale:2,
-			yScale:1,
-			texture:'images/horiz_space_platform1.png'
-}}};
-
-templates['horiz_space_platform2'] = {
-	name: 'horiz_beam',
-	mass: 25,
-	isStatic: true,
-	render:{
-		sprite:{
-			xScale:2,
-			yScale:3,
-			texture:'images/horiz_space_platform1.png'
-}}};
-
-templates['turkey_bacon'] = {
-	name: 'turkey_bacon',
-	mass: 25,
-	isStatic: true,
-	render:{
-		sprite:{
-			xScale:1,
 			yScale:2,
-			texture:'images/turkey_bacon.png'
+			texture:'images/space_triangle.png'
 }}};
 
 templates['tutorial_arrow'] = {
@@ -461,13 +496,13 @@ function mouseevent(event)
 		else if (mx >= game_bounds.left && mx <= game_bounds.right && my >= game_bounds.top && my <= game_bounds.bottom)
 		{
 			event.preventDefault();
-			if (DEBUG && mouseConstraint)
+			if (DEBUG && mouseConstraint && is_playing())
 			{
 				var body = Matter.Engine.bodyAtPt(engine, mousePosWorld);
 				if (body && Matter.Detector.canCollide(body.collisionFilter, mouseConstraint.collisionFilter))
 				{
 					mouseConstraint.constraint.bodyB = body;
-					mouseConstraint.constraint.pointB = { x: mousePosWorld.x - body.position.x, y: mousePosWorld.y - body.position.y };
+					mouseConstraint.constraint.pointB = Vector.sub(mousePosWorld, body.position);
 					mouseConstraint.constraint.angleB = body.angle;
 					return;
 				}
@@ -580,10 +615,17 @@ function checkLevelSeven()
 			Body.setPosition(k, { x: k.position.x, y: 550 - py});
 			Body.rotate(k, -0.02);
 		}
-		else
+		/*
+		else if(k.name == "shield")
 		{
-			//alert("Failed both decisions. name = " + k.name);
+			if(Math.random() < .5) {
+				var force = 0;
+				force.x = 1-Math.random();
+				force.y = 1-Math.random();
+				Body.applyForce(k, k.position, force);
+			}
 		}
+		*/
 	}
 }
 
@@ -688,7 +730,7 @@ function beforeRender(event)
 
 function afterRender(event)
 {
-	var i;
+	var i, t, x, y, cw = canvas.width, ch = canvas.height;
 	if (current_state == STATE_MOUSEDOWN)
 	{
 		// Determine the force with which the ball would be launched from here
@@ -805,16 +847,42 @@ function afterRender(event)
 		if (current_state == STATE_START_MENU)
 		{
 			tick_starfield();
-			ctx.font = '48px Monospace';
-			ctx.fillStyle = 'white';
-			ctx.textBaseline = top;
-			ctx.fillText('Physics Game', (canvas.width - ctx.measureText('Physics Game').width) / 2, canvas.height / 2 - 40);
+			t = Matter.Render.getTexture(engine.render, 'images/title.png');
+			ctx.drawImage(t, (cw - t.width) / 2, (ch - t.height) / 2 - 40);
 		}
-	else
-	{
-	  ctx.fillStyle = 'rgba(200,200,200,0.35)';
-	  ctx.fillRect(0, 0, canvas.width, canvas.height);
-	}    
+		else if (current_state == STATE_INTRO_SCROLL)
+		{
+			tick_starfield();
+			var progress = (Date.now() - intro_scroll_time) / (DEBUG ? 3000 : 35000);
+			var w, h;
+			if (progress < 0.25)
+			{ // Step 1: Title flys backward
+				t = Matter.Render.getTexture(engine.render, 'images/title.png');
+				w = Math.max(0, t.width - progress * t.width * (4 - progress));
+				h = t.height / t.width * w;
+				ctx.drawImage(t, (cw - w) / 2, (ch - h) / 2 - 40, w, h);
+			}
+			else if (progress >= 0.20 && progress <= 0.75)
+			{ // Step 2: Text scrolls in
+				progress -= 0.25;
+				t = Matter.Render.getTexture(engine.render, 'images/intro.png');
+				y = ch - progress * ch * (2 - 2 * progress);
+				w =  t.width - progress * t.width * (3 - 2 * progress);
+				ctx.drawImage(t, (cw - w) / 2, y, w, w * t.height / t.width);
+			}
+			else if (progress > 0.75 && progress < 1)
+			{ // Step 3: Camera pans down to start level?
+				// Shifting the y values of the stars tends to group them at the top of the screen...
+				run_level(START_LEVEL);
+			}
+			else // progress >= 1
+				run_level(START_LEVEL);
+		}
+		else
+		{ // Transparent background
+			ctx.fillStyle = 'rgba(200,200,200,0.35)';
+			ctx.fillRect(0, 0, cw, ch);
+		}
 	}
 
 	if(is_playing() && tutorial_state < 10 && current_level == 0){
@@ -822,13 +890,15 @@ function afterRender(event)
 			//select ball
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
-			ctx.fillText('Select your ball material', (canvas.width - ctx.measureText('Select your ball material').width) / 3 - 75, canvas.height - 150);
+                        ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
+			ctx.fillText('To begin each level, Select your ball material', (canvas.width - ctx.measureText('To begin each level, Select your ball material').width) / 3 - 75, canvas.height - 150);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3, y:canvas.height-30 }, 0.65);
 		}
 		if(tutorial_state == 1){
 			//select tele
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Select the Teleportation Portal power-up', 
 				(canvas.width - ctx.measureText('Select the Teleportation Portal power-up').width) , canvas.height - 150);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3*2+75, y:canvas.height-30 }, 0.65);
@@ -837,6 +907,7 @@ function afterRender(event)
 			//place tele entrance
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Place the entrance portal here', 
 				(canvas.width - ctx.measureText('Place the entrance portal here').width)/4 , canvas.height/2);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3, y:canvas.height/3*2 }, 0.65);
@@ -845,6 +916,7 @@ function afterRender(event)
 			//place tele exit
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Place the exit portal here', 
 				(canvas.width - ctx.measureText('Place the exit portal here').width)/4*3 , canvas.height/2-75);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3*2+50, y:canvas.height/3*2-50 }, 0.65);
@@ -853,6 +925,7 @@ function afterRender(event)
 			//select force power up
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Select the Accelerator Gate power-up', 
 				(canvas.width - ctx.measureText('Select the Accelerator Gate power-up').width) / 2 + 50, canvas.height - 150);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/2+75, y:canvas.height-30 }, 0.65);
@@ -861,6 +934,7 @@ function afterRender(event)
 			//place force power up
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Place the Accelerator Gate here', 
 				(canvas.width - ctx.measureText('Place the Accelerator Gate here').width)/4+50 , canvas.height/2-50);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3+50, y:canvas.height/3*2-50 }, 0.65);
@@ -869,6 +943,7 @@ function afterRender(event)
 			//change force direction
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
 			ctx.fillText('Change the direction of the Accelerator Gate', 
 				(canvas.width - ctx.measureText('Change the direction of the Accelerator Gate').width)/4+50 , canvas.height/2-75);
 			ctx.fillText('so it is pointing toward the entrance portal', 
@@ -879,7 +954,8 @@ function afterRender(event)
 			//fire ball hit target
 			ctx.font = '20px Monospace';
 			ctx.fillStyle = 'white';
-			ctx.fillText('Fire the ball in the Accelerator Gate', 
+ctx.fillText('Tutorial Level. This is an introduction the the powerups you can use', (canvas.width - ctx.measureText('Tutorial Level. This is an introduction the the powerups you can use').width) / 2, canvas.height - 500);
+			ctx.fillText('Fire the ball in the Accelerator Gate to hit the target.', 
 				(canvas.width - ctx.measureText('Fire the ball in the Accelerator Gate').width)/2+50 , canvas.height/2-75);
 			draw_body_from_template('tutorial_arrow', {x:canvas.width/3+50, y:canvas.height/3*2-50 }, 0.65);
 
@@ -973,7 +1049,9 @@ function mouseup(event)
 		+ '\nBottom Right: (' + round(Math.max(p.x, mousePosWorld.x),2) + ', ' + round(Math.max(p.y, mousePosWorld.y),2) + ')'
 		+ '\nCenter:       (' + round((p.x + mousePosWorld.x)/2,2) + ', ' + round((p.y+mousePosWorld.y)/2,2) + ')'
 		+ '\nxRadius:      ' + round(Math.abs(mousePosWorld.x-p.x) / 2,2)
-		+ '\nyRadius:      ' + round(Math.abs(mousePosWorld.y-p.y) / 2,2));
+		+ '\nyRadius:      ' + round(Math.abs(mousePosWorld.y-p.y) / 2,2)
+		+ '\nWidth:        ' + round(Math.abs(mousePosWorld.x-p.x),2)
+		+ '\nHeight :      ' + round(Math.abs(mousePosWorld.y-p.y),2));
 		current_state = STATE_MOUSEUP;
 		region_select_start = undefined;
 	}
@@ -1045,7 +1123,8 @@ function windowresize()
 	buttons['Level Select'].move(x, y);
 	buttons['Quit'].move(x, y + 50);
 	buttons['Cancel'].move(x, y + 100);
-	
+	move_level_buttons();
+		
 	// Spread out stars
 	resize_starfield(ow, oh, canvas.width, canvas.height);
 }
@@ -1068,12 +1147,12 @@ function create_common(worldObjects, xTarget, yTarget, xCannon, yCannon, xmin, x
 	var yMedian = (ymax + ymin) / 2;
 
 	// Create the world borders
-	worldObjects.push(Bodies.rectangle(xMedian, ymax + 50, xLength + 200, 100, {name:"border", isStatic: true, render:{visible: false} }));	// bottom
-	worldObjects.push(Bodies.rectangle(xMedian, ymin - 50, xLength + 200, 100, {name:"border", isStatic: true, render:{visible: false}}));	// top
-	worldObjects.push(Bodies.rectangle(xmin - 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{visible: false}}));	// left
-	worldObjects.push(Bodies.rectangle(xmax + 50, yMedian, 100, yLength, {name:"border", isStatic: true, render:{visible: false}}));	// right fillStyle: 'blue'
+	worldObjects.push(Bodies.rectangle(xMedian, ymax + 50, xLength + 200, 100, templates['border']));	// bottom
+	worldObjects.push(Bodies.rectangle(xMedian, ymin - 50, xLength + 200, 100, templates['border']));	// top
+	worldObjects.push(Bodies.rectangle(xmin - 50, yMedian, 100, yLength, templates['border']));	// left
+	worldObjects.push(Bodies.rectangle(xmax + 50, yMedian, 100, yLength, templates['border']));	// right
 	var texture = "images/EnemyShip.png";
-	worldObjects.push(target = Bodies.rectangle(xTarget, yTarget, 45, 30, {mass: 6, name:"target", render: {sprite:{ texture: texture, xScale:.5, yScale:.5}}}));
+	worldObjects.push(target = Bodies.rectangle(xTarget, yTarget, 45, 30, {mass: 6, name:"target", render: {sprite:{ texture: texture, xScale:1, yScale:1}}}));
 
 	spawn_zone.x = xCannon;
 	spawn_zone.y = yCannon;
@@ -1091,7 +1170,7 @@ function create_obstacle(worldObjects, x, y, w, h, template)
  
 level_create_fns.push( function(worldObjects) {	 // level 0
 	create_common(worldObjects, 650, 450, 60, 540);
-	create_obstacle(worldObjects, 650, 480, 80, 40, templates['horiz_space_platform1']);
+	create_obstacle(worldObjects, 650, 480, 100, 40, templates['horiz_space_platform']);
 	// build a destructible wall
 	// x pos, y pos, # cols, # rows, x spacing, y spacing
 	var stack = Composites.stack(450, 400, 1, 4, 5, 0, function(x, y) {
@@ -1102,61 +1181,59 @@ level_create_fns.push( function(worldObjects) {	 // level 0
 
 level_create_fns.push( function(worldObjects) {	 // level 1
 	create_common(worldObjects, 600, 245, 60, 540);
-	create_obstacle(worldObjects, 200, 300, 60, 20, templates['turkey_bacon']);
-	create_obstacle(worldObjects, 150, 100, 20, 70, templates['turkey_bacon']);
-	create_obstacle(worldObjects, 600, 160, 30, 90, templates['turkey_bacon']);
-	create_obstacle(worldObjects, 600, 300, 60, 80, templates['horiz_space_platform1']);
-	create_obstacle(worldObjects, 600, 300, 60, 80, templates['horiz_space_platform2']);
+	create_obstacle(worldObjects, 200, 300, 20, 100, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 150, 100, 20, 100, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 600, 160, 20, 100, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 600, 300, 100, 40, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 600, 300, 100, 40, templates['horiz_space_platform']);
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 2
 	create_common(worldObjects, 600, 65, 60, 540);
-	create_obstacle(worldObjects, 100, 200, 60, 20);
-	create_obstacle(worldObjects, 400, 300, 60, 20);
-	create_obstacle(worldObjects, 270, 100, 20, 70);
-	create_obstacle(worldObjects, 300, 400, 30, 90);
-	create_obstacle(worldObjects, 600, 100, 60, 40);
+	create_obstacle(worldObjects, 100, 200, 100, 40,templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 400, 300, 100, 40,templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 270, 100, 20, 100,templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 300, 400, 20, 100,templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 600, 100, 100, 40,templates['horiz_space_platform']);
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 3
-	create_common(worldObjects, 640, 275, 60, 540);
-	create_obstacle(worldObjects, 600, 100, 40, 400);
-	create_obstacle(worldObjects, 640, 295, 40, 10);
+	create_common(worldObjects, 660, 275, 60, 540);
+	create_obstacle(worldObjects, 600, 150, 80, 350, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 690, 300, 100, 40, templates['horiz_space_platform']);
 });
-
+//Last level with changes to the dimensions of objects these changes are to make textures easier
 level_create_fns.push( function(worldObjects) {	 // level 4
 	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 640, 295, 140, 10);
-	create_obstacle(worldObjects, 400, 300, 160, 20);
-	create_obstacle(worldObjects, 270, 100, 520, 70);
-	create_obstacle(worldObjects, 370, 525, 120, 150);
-	create_obstacle(worldObjects, -370, 120, 300, 70);
-	create_obstacle(worldObjects, -270, -100, 150, 150);
-	create_obstacle(worldObjects, 840, 525, 30, 150);
+	create_obstacle(worldObjects, 640, 295, 200, 80, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 400, 300, 180, 80, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 270, 100, 500, 100, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 370, 525, 60, 300, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, -370, 120, 500, 120, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, -270, -100, 500, 80, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 840, 525, 60, 300, templates['vert_space_platform5']);
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 5
 	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 540, 295, 140, 10);
-	create_obstacle(worldObjects, 40, 230, 160, 20);
-	create_obstacle(worldObjects, 270, 50, 320, 70);
-	create_obstacle(worldObjects, 370, 800, 120, 570);
-	create_obstacle(worldObjects, -370, 120, 150, 70);
-	create_obstacle(worldObjects, -270, -100, 60, 100);
-	create_obstacle(worldObjects, 640, 525, 50, 70);
+	create_obstacle(worldObjects, 540, 295, 200, 80, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 40, 230, 200, 80,templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 270, 50, 200, 80, templates['horiz_space_platform']);
+	create_obstacle(worldObjects, 370, 600, 60, 300, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, -370, 120, 200, 80,templates['horiz_space_platform']);
+	create_obstacle(worldObjects, -270, -100, 60, 300, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 640, 525, 60, 300, templates['vert_space_platform5']);
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 6
-	var texture = "images/Astroid.png";
 	create_common(worldObjects, 550, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 420, 300, 50, 50);
-	create_obstacle(worldObjects, 340, -125, 350, 70);	
-	create_obstacle(worldObjects, 0, 0, 250, 20);
+	create_obstacle(worldObjects, 0, -125, 60,300,templates['vert_space_platform5']);	
+	create_obstacle(worldObjects, 420, 160, 60, 300,templates['vert_space_platform5']);
 	var stackcreate = function(x, y) {
 		return Bodies.rectangle(x, y, 20, 20, templates['stack']);
 	}
 	worldObjects.push(Composites.stack(400, 320, 2, 14, 5, 0, stackcreate));
-	worldObjects.push(Composites.stack(400, 100, 2, 8, 5, 0, stackcreate));
+	
 });
 
 level_create_fns.push( function(worldObjects) {	 // Chris level 7
@@ -1171,11 +1248,11 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 7
 
 		});
 
-	var spinbar = Bodies.rectangle(300, 500, 200, 10, {name:"vertSpin", isStatic: true, render:{fillStyle: 'brown'}});
-	var spinbar2 = Bodies.rectangle(500, 300, 200, 10, {name:"vertSpin2", isStatic: true, render:{fillStyle: 'brown'}});
-	var spinbar3 = Bodies.rectangle(700, 300, 200, 20, {name:"vertSpin", isStatic: true, render:{fillStyle: 'brown'}});
-	var bar = Bodies.rectangle(175, 500, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
-	var bar2 = Bodies.rectangle(820, 500, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
+	var spinbar = Bodies.rectangle(300, 500, 200, 10, templates['horiz_space_platform23']);
+	var spinbar2 = Bodies.rectangle(500, 300, 200, 10, templates['horiz_space_platform1']);
+	var spinbar3 = Bodies.rectangle(700, 300, 200, 10, templates['horiz_space_platform23']);
+	var bar = Bodies.rectangle(175, 500, 30, 200, templates['vert_space_platform5']);
+	var bar2 = Bodies.rectangle(820, 500, 30, 200, templates['vert_space_platform5']);
 
 	worldObjects.push(spinbar);
 	worldObjects.push(spinbar2);
@@ -1191,9 +1268,9 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 8
 			return Bodies.circle(x, y, 30, {name:"bouncyBall", render:{sprite:{texture: 'images/Astroid.png', xScale: 1, yScale: 1}}});
 		});
 
-	var bar = Bodies.rectangle(175, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
-	var bar2 = Bodies.rectangle(820, 100, 30, 200, {name:"vertBar", isStatic: true, render:{fillStyle: 'brown'}});
-	var platform = Bodies.rectangle(500, 100, 120, 30, {name:"horizBar", isStatic: true, render:{fillStyle: 'brown'}});
+	var bar = Bodies.rectangle(175, 100, 30, 200, templates['vert_space_platform5']);
+	var bar2 = Bodies.rectangle(820, 100, 30, 200, templates['vert_space_platform5']);
+	var platform = Bodies.rectangle(500, 100, 120, 30, templates['horiz_space_platform']);
 	
 	Composites.chain(circleStack, 0.5, 0, -0.5, 0, { stiffness: 0.9 });
 
@@ -1207,26 +1284,25 @@ level_create_fns.push( function(worldObjects) {	 // Chris level 8
 
 level_create_fns.push( function(worldObjects) {	 // level 9
 	create_common(worldObjects, 800, 550, -800, 540, -1024, 1024, -600, 600);
-	create_obstacle(worldObjects, 640, 200, 140, 1000);	
-	create_obstacle(worldObjects, 840, 100, 160, 50);	
+	create_obstacle(worldObjects, 640, 200, 140, 1000, templates['vert_space_platform5']);	
+	create_obstacle(worldObjects, 840, 100, 200, 40, templates['horiz_space_platform'] );	
 });
 
 level_create_fns.push( function(worldObjects) {	 // level 10
-	var texture = "images/Astroid.png";
 	create_common(worldObjects, 1075, 575, 60, 540, 0, 1540, 0, 900);
-	var pivot = Bodies.trapezoid(1200, 626, 20, 20, 1, {name:'pivot', isStatic:true, render:{fillStyle: 'brown'}});
-	var seesaw = Bodies.rectangle(1200, 600, 400, 20, {name:'balance', mass:130});
+	var pivot = Bodies.trapezoid(1200, 626, 20, 20, 1, templates['space_triangle']);
+	var seesaw = Bodies.rectangle(1200, 600, 400, 20, templates['horiz_space_platform22']);
 	worldObjects.push(pivot);
 	worldObjects.push(seesaw);
 	var stack = Composites.stack(1250, 530, 4, 1, 5, 0, function(x, y) {
 		return Bodies.rectangle(x, y, 30, 30, templates['stack']);
 	});
 	worldObjects.push(stack);
-	worldObjects.push(Constraint.create({bodyA:seesaw, pointA:{x:0, y:10}, pointB:{x:1200, y:610}}));
+	worldObjects.push(Constraint.create({bodyA:seesaw, pointA:{x:0, y:0}, pointB:{x:1200, y:600}}));
 	
-	create_obstacle(worldObjects, 1020, 565, 20, 50);
-	create_obstacle(worldObjects, 1130, 565, 20, 50);
-	create_obstacle(worldObjects, 1075, 540, 90, 10);
+	create_obstacle(worldObjects, 1020, 560, 25, 55, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 1130, 560, 25, 55, templates['vert_space_platform5']);
+	create_obstacle(worldObjects, 1075, 540, 90, 10, templates['horiz_space_platform']);
 	target.mass = 40;
 	Matter.Body.updateInertia(target); // Changed mass after creation, so we must call this for accurate physics
 });
@@ -1431,6 +1507,8 @@ function init_starfield()
 	starfield.vrange = 15;
 	starfield.vmultiplier = 2;
 	starfield.twinkleChance = 0.001;
+	starfield.panX = 0;
+	starfield.panY = 0;
 	for(var i = 0; i < 600; i++)
 	{
 		starfield.push({
@@ -1450,6 +1528,7 @@ function init_starfield()
 		tick_starfield();
 
 	starfield.vmultiplier = 0.002;
+	tick_starfield();
 }
 
 function resize_starfield(old_width, old_height, new_width, new_height)
@@ -1466,13 +1545,19 @@ function resize_starfield(old_width, old_height, new_width, new_height)
 
 function tick_starfield()
 {
-	// Draw star field
-	var cx = canvas.width / 2;
-	var cy = canvas.height / 2;
-	var now = Date.now();
 	for(var i = 0; i < starfield.length; i++)
 	{
 		var star = starfield[i];
+		star.x += starfield.panX;
+		star.y += starfield.panY;
+	}
+	starfield.panX = starfield.panY = 0;
+	var cx = canvas.width / 2;
+	var cy = canvas.height / 2;
+	var now = Date.now();
+	for(i = 0; i < starfield.length; i++)
+	{
+		star = starfield[i];
 		if (star.twinkle > now)
 		{  // Star is already twinkling - calculate new color
 			var c = Math.floor(0xCC - 0.20 * (star.twinkle - now))
@@ -1610,7 +1695,7 @@ function is_playing()
 
 function is_in_menu()
 {
-	return current_state >= STATE_START_MENU && current_state <= STATE_LEVEL_SELECT_MENU;
+	return current_state >= STATE_START_MENU && current_state <= STATE_INTRO_SCROLL;
 }
 
 function is_pausible()
@@ -1618,8 +1703,9 @@ function is_pausible()
 	return is_playing() && !is_in_menu();
 }
 
-function in_level_select(){
-	return current_state >= STATE_LEVEL_SELECT_MENU;
+function in_level_select()
+{
+	return current_state == STATE_LEVEL_SELECT_MENU;
 }
 
 function placing_powerup()
@@ -1629,9 +1715,27 @@ function placing_powerup()
 
 
 init_starfield();
-generate_level_buttons(level_create_fns.length);
+generate_level_buttons();
 reset_engine();
-current_state = STATE_START_MENU;
+current_state = START_STATE;
 
 // Start the first level
 //run_level(START_LEVEL);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

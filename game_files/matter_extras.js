@@ -7,8 +7,26 @@
  Matter.Body.create = function(options)
  {
 	var r = Matter.Body.createOriginal(options);
-	r.render.sprite.xOffset =  0.5;
-	r.render.sprite.yOffset =  0.5;
+	if (r.render.sprite.texture)
+	{
+		var xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+		for(var i in r.vertices)
+		{
+			var v = r.vertices[i];
+			if (v.x < xmin) { xmin = v.x; }
+			if (v.y < ymin) { ymin = v.y; }
+			if (v.x > xmax) { xmax = v.x; }
+			if (v.y > ymax) { ymax = v.y; }
+		}
+		
+		var t = Matter.Render.getTexture(r.render.sprite.texture);
+		
+		r.render.sprite.xOffset =  0.5;
+		r.render.sprite.yOffset =  0.5;
+		r.render.sprite.bodyW = xmax-xmin;
+		r.render.sprite.bodyH = ymax-ymin;
+	}
+	
 	Matter.Body.updateInertia(r);
 	return r;
  };
@@ -58,6 +76,21 @@ Matter.Body.enableCollisions = function(body)
 {
 	body.collisionFilter.mask = 0xFFFFFFFF;
 };
+
+Matter.Render.getTexture = function(path)
+{
+	if (typeof Matter.textures == 'undefined')
+		Matter.textures = {};
+	
+	var	texture = Matter.textures[path];
+				
+	if (!texture)
+	{
+		texture = Matter.textures[path] = new Image();
+		texture.src = path;
+	}
+	return texture;
+}
 
 Matter.Render.bodies = function(engine, bodies, context, x, y, size)
 {
@@ -127,13 +160,7 @@ Matter.Render.bodies = function(engine, bodies, context, x, y, size)
 			{
 				// part sprite
 				var sprite = part.render.sprite,
-						texture = render.textures[sprite.texture];
-				
-				if (!texture)
-				{
-					texture = render.textures[sprite.texture] = new Image();
-					texture.src = sprite.texture;
-				}
+						texture = Matter.Render.getTexture(sprite.texture);
 
 				if (part.render.globalAlpha) 
 					c.globalAlpha = part.render.globalAlpha;
@@ -142,12 +169,14 @@ Matter.Render.bodies = function(engine, bodies, context, x, y, size)
 				c.rotate(part.angle);
 				c.scale(scale,scale);
 
+				var xScale = sprite.bodyW / texture.width;
+				var yScale = sprite.bodyH / texture.height;
 				c.drawImage(
 						texture,
-						texture.width * -sprite.xOffset * sprite.xScale, 
-						texture.height * -sprite.yOffset * sprite.yScale, 
-						texture.width * sprite.xScale,
-						texture.height * sprite.yScale
+						texture.width * -sprite.xOffset * xScale, 
+						texture.height * -sprite.yOffset * yScale, 
+						texture.width * xScale,
+						texture.height * yScale
 				);
 
 				// revert translation, hopefully faster than save / restore
@@ -183,13 +212,15 @@ Matter.Render.bodies = function(engine, bodies, context, x, y, size)
 				} else {
 						c.fillStyle = part.render.fillStyle;
 				}
-
+				if (part.render.globalAlpha) 
+					c.globalAlpha = part.render.globalAlpha;
 				c.lineWidth = part.render.lineWidth;
 				c.strokeStyle = part.render.strokeStyle;
 				c.fill();
 				c.stroke();
 				c.scale(1 / scale,1 / scale);
 				c.translate(-x, -y);
+				c.globalAlpha = 1;
 			}
 		}
 	}
