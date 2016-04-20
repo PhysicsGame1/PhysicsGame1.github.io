@@ -1,7 +1,7 @@
 ﻿/***********************************************************************
  *                      Global definitions
  ***********************************************************************/
-var DEBUG = window.location.protocol == 'file:';		// Testing features enabled by default if running from local file system
+var DEBUG = true//window.location.protocol == 'file:';		// Testing features enabled by default if running from local file system
 var START_LEVEL = DEBUG ? 10 : 0;	// This level will be run when the game starts
 
 var STATE_INITIALIZING = 0;
