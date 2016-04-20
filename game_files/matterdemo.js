@@ -1,7 +1,7 @@
 ﻿/***********************************************************************
  *                      Global definitions
  ***********************************************************************/
-var DEBUG = true//window.location.protocol == 'file:';		// Testing features enabled by default if running from local file system
+var DEBUG = window.location.protocol == 'file:';		// Testing features enabled by default if running from local file system
 var START_LEVEL = DEBUG ? 10 : 0;	// This level will be run when the game starts
 
 var STATE_INITIALIZING = 0;
@@ -847,7 +847,7 @@ function afterRender(event)
 		if (current_state == STATE_START_MENU)
 		{
 			tick_starfield();
-			t = Matter.Render.getTexture(engine.render, 'images/title.png');
+			t = Matter.Render.getTexture('images/title.png');
 			ctx.drawImage(t, (cw - t.width) / 2, (ch - t.height) / 2 - 40);
 		}
 		else if (current_state == STATE_INTRO_SCROLL)
@@ -857,7 +857,7 @@ function afterRender(event)
 			var w, h;
 			if (progress < 0.25)
 			{ // Step 1: Title flys backward
-				t = Matter.Render.getTexture(engine.render, 'images/title.png');
+				t = Matter.Render.getTexture('images/title.png');
 				w = Math.max(0, t.width - progress * t.width * (4 - progress));
 				h = t.height / t.width * w;
 				ctx.drawImage(t, (cw - w) / 2, (ch - h) / 2 - 40, w, h);
@@ -865,7 +865,7 @@ function afterRender(event)
 			else if (progress >= 0.20 && progress <= 0.75)
 			{ // Step 2: Text scrolls in
 				progress -= 0.25;
-				t = Matter.Render.getTexture(engine.render, 'images/intro.png');
+				t = Matter.Render.getTexture('images/intro.png');
 				y = ch - progress * ch * (2 - 2 * progress);
 				w =  t.width - progress * t.width * (3 - 2 * progress);
 				ctx.drawImage(t, (cw - w) / 2, y, w, w * t.height / t.width);
